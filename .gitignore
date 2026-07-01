@@ -1,0 +1,10 @@
+work/
+outputs/
+*.csv
+*.csv.gz
+*.parquet
+*.zip
+*.7z
+*.log
+.vercel/
+node_modules/
