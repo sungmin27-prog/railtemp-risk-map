@@ -102,7 +102,7 @@
         </div>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 10년 단위 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 10년 단위 최대 상위 10% 레일온도 막대그래프"></svg>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 10년 단위 55도 초과 지점 수 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
         <div class="chart-card">
@@ -307,8 +307,8 @@
           drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
         }
       });
-      drawText(svg, maxValue.toFixed(1) + "도", 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "색상: SSP1-2.6(녹색), SSP2-4.5(파랑), SSP3-7.0(주황), SSP5-8.5(빨강)";
+      drawText(svg, maxValue.toFixed(0) + "곳", 6, pad.top + 4, "start");
+      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준입니다. 색상: SSP1-2.6(녹색), SSP2-4.5(파랑), SSP3-7.0(주황), SSP5-8.5(빨강)";
     }
 
     function renderTopTable(rows) {
@@ -341,15 +341,16 @@
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
-        const maxByDecade = new Map();
-        targetRows.filter((row) => row.month === month).forEach((row) => {
+        const pointsByDecade = new Map();
+        targetRows.filter((row) => row.month === 0).forEach((row) => {
           const start = Math.floor((row.year - 2021) / 10) * 10 + 2021;
-          const current = maxByDecade.get(start) ?? -Infinity;
-          if (row.p90 > current) maxByDecade.set(start, row.p90);
+          const points = pointsByDecade.get(start) || new Set();
+          if (row.d55 > 0) points.add(row.point);
+          pointsByDecade.set(start, points);
         });
-        seriesBySsp[targetSsp] = Array.from(maxByDecade.entries()).sort((a, b) => a[0] - b[0]).map(([start, value]) => ({
+        seriesBySsp[targetSsp] = Array.from(pointsByDecade.entries()).sort((a, b) => a[0] - b[0]).map(([start, points]) => ({
           label: decadeLabel(start),
-          value,
+          value: points.size,
         }));
       }
       state.rows = state.cache.get(ssp);
