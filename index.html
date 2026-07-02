@@ -78,8 +78,8 @@
         <label for="metric">표시 지표</label>
         <select id="metric">
           <option value="risk">위험등급</option>
-          <option value="p90">상위 10% 레일온도</option>
-          <option value="p95">상위 5% 레일온도</option>
+          <option value="p90">고온 기준온도(상위 10%)</option>
+          <option value="p95">극한 고온 기준온도(상위 5%)</option>
           <option value="max">최대 레일온도</option>
           <option value="d55">55도 초과일수</option>
           <option value="d60">60도 초과일수</option>
@@ -89,7 +89,7 @@
       <div class="stats">
         <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
         <div class="stat"><b id="statRisk">0</b><span>4등급 지점</span></div>
-        <div class="stat"><b id="statP90">0</b><span>최고 상위 10% 온도</span></div>
+        <div class="stat"><b id="statP90">0</b><span>최고 고온 기준온도</span></div>
         <div class="stat"><b id="statD60">0</b><span>최대 60도 초과일수</span></div>
       </div>
       <div class="legend" id="legend"></div>
@@ -137,8 +137,8 @@
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
     const metricLabels = {
       risk: "위험등급",
-      p90: "상위 10% 레일온도(도)",
-      p95: "상위 5% 레일온도(도)",
+      p90: "고온 기준온도(상위 10%, 도)",
+      p95: "극한 고온 기준온도(상위 5%, 도)",
       max: "최대 레일온도(도)",
       d55: "55도 초과일수",
       d60: "60도 초과일수",
@@ -275,7 +275,7 @@
         }
       });
       drawText(svg, maxValue.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = `전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 상위 10% 레일온도"}입니다.`;
+      document.getElementById(noteId).textContent = `전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 고온 기준온도"}입니다.`;
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -313,7 +313,7 @@
 
     function renderTopTable(rows) {
       const ranked = [...rows].sort((a, b) => b.risk - a.risk || b.p90 - a.p90 || b.max - a.max).slice(0, 10);
-      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>상위10%</th><th>최대</th></tr></thead><tbody>'];
+      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>고온기준</th><th>최대</th></tr></thead><tbody>'];
       ranked.forEach((row) => {
         const point = state.points[row.point];
         html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p90.toFixed(1)}</td><td>${row.max.toFixed(1)}</td></tr>`);
@@ -363,8 +363,8 @@
         '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
         '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
         '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
-        '<span>상위 10%</span><b>' + row.p90.toFixed(1) + '도</b>' +
-        '<span>상위 5%</span><b>' + row.p95.toFixed(1) + '도</b>' +
+        '<span>고온 기준온도</span><b>' + row.p90.toFixed(1) + '도</b>' +
+        '<span>극한 고온 기준온도</span><b>' + row.p95.toFixed(1) + '도</b>' +
         '<span>최대</span><b>' + row.max.toFixed(1) + '도</b>' +
         '<span>55도 초과</span><b>' + row.d55.toFixed(2) + '일</b>' +
         '<span>60도 초과</span><b>' + row.d60.toFixed(2) + '일</b>' +
@@ -411,7 +411,7 @@
           sspLabels[ssp] + " " + year + "년 " + MONTHS.find((m) => m.value === month).label +
           " 기준 고위험(3등급 이상) 지점은 " + highRiskCount + "곳이며, 최고 위험 지점은 " +
           point.id + "(위도 " + point.lat.toFixed(5) + ", 경도 " + point.lon.toFixed(5) +
-          ")입니다. 해당 지점의 상위 10% 레일온도는 " + highest.p90.toFixed(1) + "도입니다.";
+          ")입니다. 해당 지점은 레일온도가 " + highest.p90.toFixed(1) + "도보다 높게 나타나는 경우가 약 10%인 고온위험 지점입니다.";
       }
     }
 
