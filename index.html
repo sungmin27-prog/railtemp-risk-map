@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rail Temperature Climate Risk Map</title>
+  <title>레일온도 기후리스크 지도</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
     :root {
@@ -24,6 +24,16 @@
     label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; }
     select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font-size: 14px; }
     .status { margin: 10px 0 0; min-height: 18px; color: var(--muted); font-size: 12px; }
+    .message-box {
+      margin: 14px 0 16px;
+      padding: 12px;
+      border-radius: 6px;
+      background: #e7f0ff;
+      border: 1px solid #8bb7ff;
+      color: #0b3d91;
+      font-size: 13px;
+      line-height: 1.45;
+    }
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 16px 0; }
     .stat { border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fbfcfd; }
     .stat b { display: block; font-size: 18px; margin-bottom: 3px; }
@@ -31,7 +41,7 @@
     .legend, .rank-list { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
     .legend-row { display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; }
     .swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
-    .rank-item { display: grid; grid-template-columns: 74px 1fr auto; gap: 8px; padding: 7px 0; border-bottom: 1px solid #edf1f4; font-size: 13px; }
+    .rank-item { display: grid; grid-template-columns: 74px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #edf1f4; font-size: 13px; }
     .rank-item span { color: var(--muted); }
     .leaflet-popup-content { margin: 12px; min-width: 210px; font-size: 13px; }
     .popup-title { font-weight: 700; margin-bottom: 8px; }
@@ -47,27 +57,28 @@
 <body>
   <div class="app">
     <aside>
-      <h1>Rail Temperature Climate Risk</h1>
-      <div class="field"><label for="ssp">SSP</label><select id="ssp"></select></div>
-      <div class="field"><label for="year">Year</label><select id="year"></select></div>
-      <div class="field"><label for="month">Month</label><select id="month"></select></div>
+      <h1>레일온도 기후리스크 지도</h1>
+      <div class="message-box" id="coreMessage">선택 조건의 고위험 지점을 계산 중입니다.</div>
+      <div class="field"><label for="ssp">기후 시나리오</label><select id="ssp"></select></div>
+      <div class="field"><label for="year">연도</label><select id="year"></select></div>
+      <div class="field"><label for="month">월</label><select id="month"></select></div>
       <div class="field">
-        <label for="metric">Metric</label>
+        <label for="metric">표시 지표</label>
         <select id="metric">
-          <option value="risk">Risk class</option>
-          <option value="p90">P90 rail temp</option>
-          <option value="p95">P95 rail temp</option>
-          <option value="max">Max rail temp</option>
-          <option value="d55">Days over 55C</option>
-          <option value="d60">Days over 60C</option>
+          <option value="risk">위험등급</option>
+          <option value="p90">P90 레일온도</option>
+          <option value="p95">P95 레일온도</option>
+          <option value="max">최대 레일온도</option>
+          <option value="d55">55도 초과일수</option>
+          <option value="d60">60도 초과일수</option>
         </select>
       </div>
       <div class="status" id="status"></div>
       <div class="stats">
-        <div class="stat"><b id="statPoints">0</b><span>points</span></div>
-        <div class="stat"><b id="statRisk">0</b><span>risk 4</span></div>
-        <div class="stat"><b id="statP90">0</b><span>max P90 C</span></div>
-        <div class="stat"><b id="statD60">0</b><span>max days 60C</span></div>
+        <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
+        <div class="stat"><b id="statRisk">0</b><span>4등급 지점</span></div>
+        <div class="stat"><b id="statP90">0</b><span>최고 P90 온도</span></div>
+        <div class="stat"><b id="statD60">0</b><span>최대 60도 초과일수</span></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="rank-list" id="rankList"></div>
@@ -77,22 +88,27 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const SSPS = ["SSP126", "SSP245", "SSP370", "SSP585"];
+    const sspLabels = {
+      SSP126: "SSP1-2.6",
+      SSP245: "SSP2-4.5",
+      SSP370: "SSP3-7.0",
+      SSP585: "SSP5-8.5",
+    };
     const MONTHS = [
-      { value: 0, label: "May-Sep" },
-      { value: 5, label: "May" },
-      { value: 6, label: "Jun" },
-      { value: 7, label: "Jul" },
-      { value: 8, label: "Aug" },
-      { value: 9, label: "Sep" },
+      { value: 5, label: "5월" },
+      { value: 6, label: "6월" },
+      { value: 7, label: "7월" },
+      { value: 8, label: "8월" },
+      { value: 9, label: "9월" },
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
     const metricLabels = {
-      risk: "Risk class",
-      p90: "P90 rail temp (C)",
-      p95: "P95 rail temp (C)",
-      max: "Max rail temp (C)",
-      d55: "Days over 55C",
-      d60: "Days over 60C",
+      risk: "위험등급",
+      p90: "P90 레일온도(도)",
+      p95: "P95 레일온도(도)",
+      max: "최대 레일온도(도)",
+      d55: "55도 초과일수",
+      d60: "60도 초과일수",
     };
     const controls = {
       ssp: document.getElementById("ssp"),
@@ -115,12 +131,12 @@
       node.textContent = text;
       select.appendChild(node);
     }
-    SSPS.forEach((ssp) => option(controls.ssp, ssp, ssp));
+    SSPS.forEach((ssp) => option(controls.ssp, ssp, sspLabels[ssp]));
     for (let year = 2021; year <= 2100; year++) option(controls.year, year, year);
     MONTHS.forEach((month) => option(controls.month, month.value, month.label));
     controls.ssp.value = "SSP585";
     controls.year.value = "2100";
-    controls.month.value = "0";
+    controls.month.value = "8";
 
     async function loadJson(url) {
       const response = await fetch(url);
@@ -133,7 +149,7 @@
         state.rows = state.cache.get(ssp);
         return;
       }
-      statusEl.textContent = "Loading " + ssp + " annual data...";
+      statusEl.textContent = sspLabels[ssp] + " 연도별 데이터를 불러오는 중입니다.";
       const payload = await loadJson("data/railtemp_annual_" + ssp + ".json");
       const rows = payload.rows.map((row) => ({
         point: row[0], year: row[1], month: row[2], mean: row[3], p50: row[4],
@@ -163,8 +179,8 @@
     }
 
     function legendRows(metric) {
-      if (metric === "risk") return ["0", "1", "2", "3", "4"];
-      if (metric === "d55" || metric === "d60") return ["0", "> 0", ">= 3", ">= 10", ">= 20"];
+      if (metric === "risk") return ["0등급", "1등급", "2등급", "3등급", "4등급"];
+      if (metric === "d55" || metric === "d60") return ["0일", "0일 초과", "3일 이상", "10일 이상", "20일 이상"];
       return ["< 45", "45-50", "50-55", "55-60", ">= 60"];
     }
 
@@ -182,15 +198,17 @@
     function popup(row, point) {
       return '<div class="popup-title">' + point.id + '</div>' +
         '<div class="popup-grid">' +
-        '<span>SSP</span><b>' + controls.ssp.value + '</b>' +
-        '<span>Year</span><b>' + row.year + '</b>' +
-        '<span>Month</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
-        '<span>P90</span><b>' + row.p90.toFixed(1) + ' C</b>' +
-        '<span>P95</span><b>' + row.p95.toFixed(1) + ' C</b>' +
-        '<span>Max</span><b>' + row.max.toFixed(1) + ' C</b>' +
-        '<span>Days 55C</span><b>' + row.d55.toFixed(2) + '</b>' +
-        '<span>Days 60C</span><b>' + row.d60.toFixed(2) + '</b>' +
-        '<span>Risk</span><b>' + row.risk + '</b>' +
+        '<span>시나리오</span><b>' + sspLabels[controls.ssp.value] + '</b>' +
+        '<span>연도</span><b>' + row.year + '</b>' +
+        '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
+        '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
+        '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
+        '<span>P90</span><b>' + row.p90.toFixed(1) + '도</b>' +
+        '<span>P95</span><b>' + row.p95.toFixed(1) + '도</b>' +
+        '<span>최대</span><b>' + row.max.toFixed(1) + '도</b>' +
+        '<span>55도 초과</span><b>' + row.d55.toFixed(2) + '일</b>' +
+        '<span>60도 초과</span><b>' + row.d60.toFixed(2) + '일</b>' +
+        '<span>위험등급</span><b>' + row.risk + '</b>' +
         '</div>';
     }
 
@@ -224,19 +242,33 @@
       renderLegend(metric);
 
       const ranked = [...rows].sort((a, b) => b.risk - a.risk || b.p90 - a.p90).slice(0, 8);
+      const highest = ranked[0];
+      const highRiskCount = rows.filter((row) => row.risk >= 3).length;
+      if (highest) {
+        const point = state.points[highest.point];
+        document.getElementById("coreMessage").textContent =
+          sspLabels[ssp] + " " + year + "년 " + MONTHS.find((m) => m.value === month).label +
+          " 기준 고위험(3등급 이상) 지점은 " + highRiskCount + "곳이며, 최고 위험 지점은 " +
+          point.id + "(위도 " + point.lat.toFixed(5) + ", 경도 " + point.lon.toFixed(5) +
+          ")입니다. 해당 지점의 P90 레일온도는 " + highest.p90.toFixed(1) + "도입니다.";
+      }
       const list = document.getElementById("rankList");
-      list.innerHTML = "<label>Highest risk points</label>";
+      list.innerHTML = "<label>고위험 지점</label>";
       ranked.forEach((row) => {
         const point = state.points[row.point];
         const item = document.createElement("div");
         item.className = "rank-item";
-        item.innerHTML = "<b>" + point.id + "</b><span>P90 " + row.p90.toFixed(1) + " C</span><b>" + row.risk + "</b>";
+        item.innerHTML =
+          "<b>" + point.id + "</b><span>위도 " + point.lat.toFixed(5) +
+          ", 경도 " + point.lon.toFixed(5) + "<br>P90 레일온도 " +
+          row.p90.toFixed(1) + "도, 최대 " + row.max.toFixed(1) +
+          "도, 위험등급 " + row.risk + "</span>";
         list.appendChild(item);
       });
     }
 
     async function init() {
-      statusEl.textContent = "Loading point data...";
+      statusEl.textContent = "지점 데이터를 불러오는 중입니다.";
       const pointsPayload = await loadJson("data/points.json");
       state.points = pointsPayload.rows.map((row) => ({ id: row[0], lat: row[1], lon: row[2] }));
       Object.values(controls).forEach((control) => control.addEventListener("change", () => {
