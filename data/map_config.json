@@ -1,0 +1,33 @@
+{
+  "startYear": 2021,
+  "endYear": 2100,
+  "months": [
+    {
+      "value": 0,
+      "label": "May-Sep"
+    },
+    {
+      "value": 5,
+      "label": "May"
+    },
+    {
+      "value": 6,
+      "label": "Jun"
+    },
+    {
+      "value": 7,
+      "label": "Jul"
+    },
+    {
+      "value": 8,
+      "label": "Aug"
+    },
+    {
+      "value": 9,
+      "label": "Sep"
+    }
+  ],
+  "pointCount": 187,
+  "ranks": 100,
+  "generatedAt": "2026-07-02T00:22:33.604Z"
+}

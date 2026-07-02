@@ -2,11 +2,13 @@
 
 Static HTML deployment for the rail temperature climate risk map.
 
-This repository intentionally excludes raw source CSV files and intermediate processing outputs. The deployed site contains only the derived, map-ready summary data embedded in `index.html`.
+This repository intentionally excludes raw source CSV files and intermediate processing outputs. The deployed site contains only derived, map-ready annual summary data.
 
 ## Contents
 
-- `index.html`: standalone Leaflet map with derived point-level climate risk summaries.
+- `index.html`: Leaflet map UI with SSP, year, month, and metric controls.
+- `data/points.json`: derived coordinate point list.
+- `data/railtemp_annual_SSP*.json`: derived annual point-level climate risk summaries.
 
 ## Source Data Policy
 
