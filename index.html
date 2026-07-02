@@ -44,7 +44,7 @@
     .chart-card { margin-top: 10px; }
     .chart-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
     .chart-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
-    .chart-svg { display: block; width: 100%; height: 128px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
+    .chart-svg { display: block; width: 100%; height: 156px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
     .chart-axis { stroke: #ccd5dd; stroke-width: 1; }
     .chart-line { fill: none; stroke: #1c7ed6; stroke-width: 2.5; }
     .chart-line-secondary { fill: none; stroke: #9d0208; stroke-width: 2.5; }
@@ -96,13 +96,13 @@
       <div class="charts" id="charts">
         <label>통계 시각화</label>
         <div class="chart-card">
-          <div class="chart-title">연도별 55도 초과일수</div>
-          <svg class="chart-svg" id="d55TrendChart" viewBox="0 0 280 128" role="img" aria-label="연도별 55도 초과일수 막대그래프와 추세선"></svg>
+          <div class="chart-title">10년 단위 55도 초과일수</div>
+          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="10년 단위 55도 초과 연평균일수 막대그래프"></svg>
           <p class="chart-note" id="d55TrendNote"></p>
         </div>
         <div class="chart-card">
-          <div class="chart-title">SSP 시나리오별 비교선</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 128" role="img" aria-label="SSP 시나리오별 최대 상위 10% 레일온도 비교선"></svg>
+          <div class="chart-title">SSP 시나리오별 10년 단위 비교</div>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 10년 단위 최대 상위 10% 레일온도 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
         <div class="chart-card">
@@ -247,92 +247,67 @@
       svg.appendChild(node);
     }
 
-    function drawLineChart(svgId, noteId, series, unit, secondary = false) {
-      const svg = document.getElementById(svgId);
-      clearSvg(svg);
-      const width = 280;
-      const height = 128;
-      const pad = { left: 34, right: 12, top: 14, bottom: 24 };
-      drawAxes(svg, width, height, pad);
-      const values = series.map((d) => d.value);
-      const minValue = Math.min(...values);
-      const maxValue = Math.max(...values);
-      const low = minValue === maxValue ? minValue - 1 : minValue;
-      const high = minValue === maxValue ? maxValue + 1 : maxValue;
-      const chartW = width - pad.left - pad.right;
-      const chartH = height - pad.top - pad.bottom;
-      const points = series.map((d, index) => {
-        const x = pad.left + chartW * index / (series.length - 1);
-        const y = height - pad.bottom - chartH * (d.value - low) / (high - low);
-        return { x, y, year: d.year, value: d.value };
-      });
-      const path = points.map((p, index) => (index === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
-      svg.appendChild(svgEl("path", { d: path, class: secondary ? "chart-line-secondary" : "chart-line" }));
-      [points[0], points[points.length - 1]].forEach((p) => {
-        svg.appendChild(svgEl("circle", { cx: p.x, cy: p.y, r: 2.5, class: "chart-dot" }));
-      });
-      drawText(svg, String(series[0].year), pad.left, height - 8);
-      drawText(svg, String(series[series.length - 1].year), width - pad.right, height - 8, "end");
-      drawText(svg, high.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
-      drawText(svg, low.toFixed(unit === "도" ? 1 : 0) + unit, 6, height - pad.bottom, "start");
-      const last = series[series.length - 1];
-      document.getElementById(noteId).textContent = `${series[0].year}-${last.year} 추세, ${last.year}년 값 ${last.value.toFixed(unit === "도" ? 1 : 0)}${unit}`;
+    function decadeLabel(year) {
+      const start = Math.floor((year - 2021) / 10) * 10 + 2021;
+      return String(start).slice(2) + "-" + String(Math.min(start + 9, 2100)).slice(2);
     }
 
-    function drawBarLineChart(svgId, noteId, series, unit) {
+    function drawDecadeBarChart(svgId, noteId, series, unit, color = "#1c7ed6") {
       const svg = document.getElementById(svgId);
       clearSvg(svg);
       const width = 280;
-      const height = 128;
-      const pad = { left: 38, right: 12, top: 14, bottom: 24 };
+      const height = 156;
+      const pad = { left: 42, right: 12, top: 14, bottom: 36 };
       drawAxes(svg, width, height, pad);
       const values = series.map((d) => d.value);
       const maxValue = Math.max(1, ...values);
       const chartW = width - pad.left - pad.right;
       const chartH = height - pad.top - pad.bottom;
-      const barW = Math.max(1.5, chartW / series.length * 0.72);
-      const points = series.map((d, index) => {
-        const x = pad.left + chartW * index / (series.length - 1);
+      const gap = 4;
+      const barW = (chartW - gap * (series.length - 1)) / series.length;
+      series.forEach((d, index) => {
+        const x = pad.left + index * (barW + gap);
         const h = chartH * d.value / maxValue;
         const y = height - pad.bottom - h;
-        svg.appendChild(svgEl("rect", { x: x - barW / 2, y, width: barW, height: h, rx: 1, fill: "#8bb7ff" }));
-        return { x, y, year: d.year, value: d.value };
+        svg.appendChild(svgEl("rect", { x, y, width: barW, height: h, rx: 2, fill: color }));
+        if (index % 2 === 0 || index === series.length - 1) {
+          drawText(svg, d.label, x + barW / 2, height - 20);
+        }
       });
-      const path = points.map((p, index) => (index === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
-      svg.appendChild(svgEl("path", { d: path, class: "chart-line-secondary" }));
-      drawText(svg, String(series[0].year), pad.left, height - 8);
-      drawText(svg, String(series[series.length - 1].year), width - pad.right, height - 8, "end");
-      drawText(svg, maxValue.toFixed(0) + unit, 6, pad.top + 4, "start");
-      const last = series[series.length - 1];
-      document.getElementById(noteId).textContent = `선택 시나리오·월 기준 전체 지점 합계, ${last.year}년 ${last.value.toFixed(1)}${unit}`;
+      drawText(svg, maxValue.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
+      document.getElementById(noteId).textContent = `10년 구간별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 상위 10% 레일온도"}입니다.`;
     }
 
-    function drawMultiLineChart(svgId, noteId, seriesBySsp) {
+    function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
       const svg = document.getElementById(svgId);
       clearSvg(svg);
       const width = 280;
-      const height = 128;
-      const pad = { left: 34, right: 12, top: 14, bottom: 24 };
+      const height = 156;
+      const pad = { left: 42, right: 12, top: 14, bottom: 36 };
       drawAxes(svg, width, height, pad);
       const palette = { SSP126: "#2f9e44", SSP245: "#1c7ed6", SSP370: "#f59f00", SSP585: "#9d0208" };
-      const allValues = Object.values(seriesBySsp).flat().map((d) => d.value);
-      const low = Math.min(...allValues);
-      const high = Math.max(...allValues);
+      const allSeries = Object.values(seriesBySsp);
+      const allValues = allSeries.flat().map((d) => d.value);
+      const maxValue = Math.max(1, ...allValues);
+      const labels = allSeries[0].map((d) => d.label);
       const chartW = width - pad.left - pad.right;
       const chartH = height - pad.top - pad.bottom;
-      Object.entries(seriesBySsp).forEach(([ssp, series]) => {
-        const points = series.map((d, index) => {
-          const x = pad.left + chartW * index / (series.length - 1);
-          const y = height - pad.bottom - chartH * (d.value - low) / Math.max(1, high - low);
-          return { x, y };
+      const groupGap = 5;
+      const groupW = (chartW - groupGap * (labels.length - 1)) / labels.length;
+      const barW = groupW / SSPS.length;
+      labels.forEach((label, groupIndex) => {
+        SSPS.forEach((ssp, sspIndex) => {
+          const value = seriesBySsp[ssp][groupIndex].value;
+          const h = chartH * value / maxValue;
+          const x = pad.left + groupIndex * (groupW + groupGap) + sspIndex * barW;
+          const y = height - pad.bottom - h;
+          svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: palette[ssp] }));
         });
-        const d = points.map((p, index) => (index === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
-        svg.appendChild(svgEl("path", { d, fill: "none", stroke: palette[ssp], "stroke-width": 2 }));
+        if (groupIndex % 2 === 0 || groupIndex === labels.length - 1) {
+          drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
+        }
       });
-      drawText(svg, "2021", pad.left, height - 8);
-      drawText(svg, "2100", width - pad.right, height - 8, "end");
-      drawText(svg, high.toFixed(1) + "도", 6, pad.top + 4, "start");
-      drawText(svg, low.toFixed(1) + "도", 6, height - pad.bottom, "start");
+      drawText(svg, maxValue.toFixed(1) + "도", 6, pad.top + 4, "start");
       document.getElementById(noteId).textContent = "색상: SSP1-2.6(녹색), SSP2-4.5(파랑), SSP3-7.0(주황), SSP5-8.5(빨강)";
     }
 
@@ -349,27 +324,36 @@
 
     async function updateCharts(rows, ssp, month) {
       const monthRows = state.rows.filter((row) => row.month === month);
-      const byYear = new Map();
+      const byDecade = new Map();
       monthRows.forEach((row) => {
-        const item = byYear.get(row.year) || { year: row.year, d55: 0 };
+        const start = Math.floor((row.year - 2021) / 10) * 10 + 2021;
+        const item = byDecade.get(start) || { start, d55: 0, years: new Set() };
         item.d55 += row.d55;
-        byYear.set(row.year, item);
+        item.years.add(row.year);
+        byDecade.set(start, item);
       });
-      const yearly = Array.from(byYear.values()).sort((a, b) => a.year - b.year);
-      drawBarLineChart("d55TrendChart", "d55TrendNote", yearly.map((item) => ({ year: item.year, value: item.d55 })), "일");
+      const decadeD55 = Array.from(byDecade.values()).sort((a, b) => a.start - b.start).map((item) => ({
+        label: decadeLabel(item.start),
+        value: item.d55 / item.years.size,
+      }));
+      drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "일", "#1c7ed6");
 
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
-        const maxByYear = new Map();
+        const maxByDecade = new Map();
         targetRows.filter((row) => row.month === month).forEach((row) => {
-          const current = maxByYear.get(row.year) ?? -Infinity;
-          if (row.p90 > current) maxByYear.set(row.year, row.p90);
+          const start = Math.floor((row.year - 2021) / 10) * 10 + 2021;
+          const current = maxByDecade.get(start) ?? -Infinity;
+          if (row.p90 > current) maxByDecade.set(start, row.p90);
         });
-        seriesBySsp[targetSsp] = Array.from(maxByYear.entries()).sort((a, b) => a[0] - b[0]).map(([year, value]) => ({ year, value }));
+        seriesBySsp[targetSsp] = Array.from(maxByDecade.entries()).sort((a, b) => a[0] - b[0]).map(([start, value]) => ({
+          label: decadeLabel(start),
+          value,
+        }));
       }
       state.rows = state.cache.get(ssp);
-      drawMultiLineChart("sspCompareChart", "sspCompareNote", seriesBySsp);
+      drawGroupedDecadeChart("sspCompareChart", "sspCompareNote", seriesBySsp);
       renderTopTable(rows);
     }
 
