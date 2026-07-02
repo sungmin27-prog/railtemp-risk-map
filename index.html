@@ -38,9 +38,19 @@
     .stat { border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: #fbfcfd; }
     .stat b { display: block; font-size: 18px; margin-bottom: 3px; }
     .stat span { color: var(--muted); font-size: 12px; }
-    .legend, .rank-list { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
+    .legend, .charts, .rank-list { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
     .legend-row { display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; }
     .swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
+    .chart-card { margin-top: 10px; }
+    .chart-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+    .chart-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .chart-svg { display: block; width: 100%; height: 128px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
+    .chart-axis { stroke: #ccd5dd; stroke-width: 1; }
+    .chart-line { fill: none; stroke: #1c7ed6; stroke-width: 2.5; }
+    .chart-line-secondary { fill: none; stroke: #9d0208; stroke-width: 2.5; }
+    .chart-dot { fill: #1c7ed6; }
+    .chart-bar { fill: #1c7ed6; }
+    .chart-label { fill: #52616d; font-size: 10px; }
     .rank-item { display: grid; grid-template-columns: 74px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid #edf1f4; font-size: 13px; }
     .rank-item span { color: var(--muted); }
     .leaflet-popup-content { margin: 12px; min-width: 210px; font-size: 13px; }
@@ -81,6 +91,24 @@
         <div class="stat"><b id="statD60">0</b><span>최대 60도 초과일수</span></div>
       </div>
       <div class="legend" id="legend"></div>
+      <div class="charts" id="charts">
+        <label>통계 시각화</label>
+        <div class="chart-card">
+          <div class="chart-title">위험등급별 지점 수</div>
+          <svg class="chart-svg" id="riskBarChart" viewBox="0 0 280 128" role="img" aria-label="위험등급별 지점 수 막대그래프"></svg>
+          <p class="chart-note" id="riskBarNote"></p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">연도별 최대 P90 레일온도</div>
+          <svg class="chart-svg" id="p90TrendChart" viewBox="0 0 280 128" role="img" aria-label="연도별 최대 P90 레일온도 추세선"></svg>
+          <p class="chart-note" id="p90TrendNote"></p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">연도별 4등급 지점 수</div>
+          <svg class="chart-svg" id="risk4TrendChart" viewBox="0 0 280 128" role="img" aria-label="연도별 4등급 지점 수 추세선"></svg>
+          <p class="chart-note" id="risk4TrendNote"></p>
+        </div>
+      </div>
       <div class="rank-list" id="rankList"></div>
     </aside>
     <main><div id="map"></div></main>
@@ -195,6 +223,102 @@
       });
     }
 
+    function clearSvg(svg) {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+    }
+
+    function svgEl(name, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      return el;
+    }
+
+    function drawAxes(svg, width, height, pad) {
+      svg.appendChild(svgEl("line", { x1: pad.left, y1: height - pad.bottom, x2: width - pad.right, y2: height - pad.bottom, class: "chart-axis" }));
+      svg.appendChild(svgEl("line", { x1: pad.left, y1: pad.top, x2: pad.left, y2: height - pad.bottom, class: "chart-axis" }));
+    }
+
+    function drawText(svg, text, x, y, anchor = "middle") {
+      const node = svgEl("text", { x, y, "text-anchor": anchor, class: "chart-label" });
+      node.textContent = text;
+      svg.appendChild(node);
+    }
+
+    function drawBarChart(svgId, noteId, counts) {
+      const svg = document.getElementById(svgId);
+      clearSvg(svg);
+      const width = 280;
+      const height = 128;
+      const pad = { left: 30, right: 12, top: 14, bottom: 24 };
+      drawAxes(svg, width, height, pad);
+      const maxValue = Math.max(1, ...counts);
+      const chartW = width - pad.left - pad.right;
+      const chartH = height - pad.top - pad.bottom;
+      const gap = 8;
+      const barW = (chartW - gap * 4) / 5;
+      counts.forEach((value, index) => {
+        const x = pad.left + index * (barW + gap);
+        const h = chartH * value / maxValue;
+        const y = height - pad.bottom - h;
+        svg.appendChild(svgEl("rect", { x, y, width: barW, height: h, rx: 2, class: "chart-bar", fill: colors[index] }));
+        drawText(svg, String(index), x + barW / 2, height - 8);
+      });
+      drawText(svg, String(maxValue), 6, pad.top + 4, "start");
+      document.getElementById(noteId).textContent = "선택 연도·월 기준, 등급 0~4별 지점 수입니다.";
+    }
+
+    function drawLineChart(svgId, noteId, series, unit, secondary = false) {
+      const svg = document.getElementById(svgId);
+      clearSvg(svg);
+      const width = 280;
+      const height = 128;
+      const pad = { left: 34, right: 12, top: 14, bottom: 24 };
+      drawAxes(svg, width, height, pad);
+      const values = series.map((d) => d.value);
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+      const low = minValue === maxValue ? minValue - 1 : minValue;
+      const high = minValue === maxValue ? maxValue + 1 : maxValue;
+      const chartW = width - pad.left - pad.right;
+      const chartH = height - pad.top - pad.bottom;
+      const points = series.map((d, index) => {
+        const x = pad.left + chartW * index / (series.length - 1);
+        const y = height - pad.bottom - chartH * (d.value - low) / (high - low);
+        return { x, y, year: d.year, value: d.value };
+      });
+      const path = points.map((p, index) => (index === 0 ? "M" : "L") + p.x.toFixed(1) + " " + p.y.toFixed(1)).join(" ");
+      svg.appendChild(svgEl("path", { d: path, class: secondary ? "chart-line-secondary" : "chart-line" }));
+      [points[0], points[points.length - 1]].forEach((p) => {
+        svg.appendChild(svgEl("circle", { cx: p.x, cy: p.y, r: 2.5, class: "chart-dot" }));
+      });
+      drawText(svg, String(series[0].year), pad.left, height - 8);
+      drawText(svg, String(series[series.length - 1].year), width - pad.right, height - 8, "end");
+      drawText(svg, high.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
+      drawText(svg, low.toFixed(unit === "도" ? 1 : 0) + unit, 6, height - pad.bottom, "start");
+      const last = series[series.length - 1];
+      document.getElementById(noteId).textContent = `${series[0].year}-${last.year} 추세, ${last.year}년 값 ${last.value.toFixed(unit === "도" ? 1 : 0)}${unit}`;
+    }
+
+    function updateCharts(rows, ssp, month) {
+      const counts = [0, 0, 0, 0, 0];
+      rows.forEach((row) => counts[row.risk]++);
+      drawBarChart("riskBarChart", "riskBarNote", counts);
+
+      const monthRows = state.rows.filter((row) => row.month === month);
+      const byYear = new Map();
+      monthRows.forEach((row) => {
+        const item = byYear.get(row.year) || { year: row.year, maxP90: -Infinity, risk4: 0 };
+        if (row.p90 > item.maxP90) item.maxP90 = row.p90;
+        if (row.risk === 4) item.risk4++;
+        byYear.set(row.year, item);
+      });
+      const yearly = Array.from(byYear.values()).sort((a, b) => a.year - b.year);
+      const p90Series = yearly.map((item) => ({ year: item.year, value: item.maxP90 }));
+      const risk4Series = yearly.map((item) => ({ year: item.year, value: item.risk4 }));
+      drawLineChart("p90TrendChart", "p90TrendNote", p90Series, "도", false);
+      drawLineChart("risk4TrendChart", "risk4TrendNote", risk4Series, "곳", true);
+    }
+
     function popup(row, point) {
       return '<div class="popup-title">' + point.id + '</div>' +
         '<div class="popup-grid">' +
@@ -240,6 +364,7 @@
       document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p90)).toFixed(1);
       document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.d60)).toFixed(1);
       renderLegend(metric);
+      updateCharts(rows, ssp, month);
 
       const ranked = [...rows].sort((a, b) => b.risk - a.risk || b.p90 - a.p90).slice(0, 8);
       const highest = ranked[0];
