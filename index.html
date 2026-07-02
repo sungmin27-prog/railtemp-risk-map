@@ -72,7 +72,7 @@
       <h1>레일온도 기후리스크 지도</h1>
       <div class="message-box" id="coreMessage">선택 조건의 고위험 지점을 계산 중입니다.</div>
       <div class="field"><label for="ssp">기후 시나리오</label><select id="ssp"></select></div>
-      <div class="field"><label for="period">시기</label><select id="period"></select></div>
+      <div class="field"><label for="year">연도</label><select id="year"></select></div>
       <div class="field"><label for="month">월</label><select id="month"></select></div>
       <div class="field">
         <label for="metric">표시 지표</label>
@@ -96,13 +96,13 @@
       <div class="charts" id="charts">
         <label>통계 시각화</label>
         <div class="chart-card">
-          <div class="chart-title">10년 단위 55도 초과일수</div>
-          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="10년 단위 55도 초과 연평균일수 막대그래프"></svg>
+          <div class="chart-title">시기별 55도 초과일수</div>
+          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 55도 초과 연평균일수 막대그래프"></svg>
           <p class="chart-note" id="d55TrendNote"></p>
         </div>
         <div class="chart-card">
-          <div class="chart-title">SSP 시나리오별 10년 단위 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 10년 단위 55도 초과 지점 수 막대그래프"></svg>
+          <div class="chart-title">SSP 시나리오별 시기 비교</div>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 55도 초과 지점 수 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
         <div class="chart-card">
@@ -145,7 +145,7 @@
     };
     const controls = {
       ssp: document.getElementById("ssp"),
-      period: document.getElementById("period"),
+      year: document.getElementById("year"),
       month: document.getElementById("month"),
       metric: document.getElementById("metric"),
     };
@@ -165,10 +165,10 @@
       select.appendChild(node);
     }
     SSPS.forEach((ssp) => option(controls.ssp, ssp, sspLabels[ssp]));
-    PERIODS.forEach((period) => option(controls.period, period.id, `${period.label} (${period.range})`));
+    for (let year = 2021; year <= 2100; year++) option(controls.year, year, year);
     MONTHS.forEach((month) => option(controls.month, month.value, month.label));
     controls.ssp.value = "SSP585";
-    controls.period.value = "late";
+    controls.year.value = "2100";
     controls.month.value = "8";
 
     async function loadJson(url) {
@@ -195,66 +195,6 @@
 
     async function ensureSsp(ssp) {
       state.rows = await loadSspRows(ssp);
-    }
-
-    function getPeriod(periodId) {
-      return PERIODS.find((period) => period.id === periodId) || PERIODS[2];
-    }
-
-    function riskFromValues(p90, d60) {
-      if (p90 >= 60 || d60 >= 1) return 4;
-      if (p90 >= 55) return 3;
-      if (p90 >= 50) return 2;
-      if (p90 >= 45) return 1;
-      return 0;
-    }
-
-    function aggregatePeriodRows(rows, period, month) {
-      const byPoint = new Map();
-      rows.filter((row) => row.month === month && row.year >= period.start && row.year <= period.end).forEach((row) => {
-        const item = byPoint.get(row.point) || {
-          point: row.point,
-          month,
-          mean: 0,
-          p50: 0,
-          p90: -Infinity,
-          p95: -Infinity,
-          max: -Infinity,
-          d55: 0,
-          d60: 0,
-          n: 0,
-          years: new Set(),
-        };
-        item.mean += row.mean;
-        item.p50 += row.p50;
-        item.p90 = Math.max(item.p90, row.p90);
-        item.p95 = Math.max(item.p95, row.p95);
-        item.max = Math.max(item.max, row.max);
-        item.d55 += row.d55;
-        item.d60 += row.d60;
-        item.n += row.n;
-        item.years.add(row.year);
-        byPoint.set(row.point, item);
-      });
-      return Array.from(byPoint.values()).map((item) => {
-        const years = Math.max(1, item.years.size);
-        const d60 = item.d60 / years;
-        const p90 = item.p90;
-        return {
-          point: item.point,
-          month: item.month,
-          period,
-          mean: item.mean / years,
-          p50: item.p50 / years,
-          p90,
-          p95: item.p95,
-          max: item.max,
-          d55: item.d55 / years,
-          d60,
-          risk: riskFromValues(p90, d60),
-          n: item.n,
-        };
-      });
     }
 
     function colorFor(row, metric) {
@@ -312,11 +252,6 @@
       svg.appendChild(node);
     }
 
-    function decadeLabel(year) {
-      const start = Math.floor((year - 2021) / 10) * 10 + 2021;
-      return String(start).slice(2) + "-" + String(Math.min(start + 9, 2100)).slice(2);
-    }
-
     function drawDecadeBarChart(svgId, noteId, series, unit, color = "#1c7ed6") {
       const svg = document.getElementById(svgId);
       clearSvg(svg);
@@ -340,7 +275,7 @@
         }
       });
       drawText(svg, maxValue.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = `10년 구간별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 상위 10% 레일온도"}입니다.`;
+      document.getElementById(noteId).textContent = `전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 상위 10% 레일온도"}입니다.`;
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -373,7 +308,7 @@
         }
       });
       drawText(svg, maxValue.toFixed(0) + "곳", 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준입니다. 색상: SSP1-2.6(녹색), SSP2-4.5(파랑), SSP3-7.0(주황), SSP5-8.5(빨강)";
+      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준입니다. 전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)를 비교합니다.";
     }
 
     function renderTopTable(rows) {
@@ -388,35 +323,32 @@
     }
 
     async function updateCharts(rows, ssp, month) {
-      const monthRows = state.rows.filter((row) => row.month === month);
-      const byDecade = new Map();
-      monthRows.forEach((row) => {
-        const start = Math.floor((row.year - 2021) / 10) * 10 + 2021;
-        const item = byDecade.get(start) || { start, d55: 0, years: new Set() };
-        item.d55 += row.d55;
-        item.years.add(row.year);
-        byDecade.set(start, item);
+      const decadeD55 = PERIODS.map((period) => {
+        const item = { d55: 0, years: new Set() };
+        state.rows.filter((row) => row.month === month && row.year >= period.start && row.year <= period.end).forEach((row) => {
+          item.d55 += row.d55;
+          item.years.add(row.year);
+        });
+        return {
+          label: period.label,
+          value: item.d55 / Math.max(1, item.years.size),
+        };
       });
-      const decadeD55 = Array.from(byDecade.values()).sort((a, b) => a.start - b.start).map((item) => ({
-        label: decadeLabel(item.start),
-        value: item.d55 / item.years.size,
-      }));
       drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "일", "#1c7ed6");
 
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
-        const pointsByDecade = new Map();
-        targetRows.filter((row) => row.month === 0).forEach((row) => {
-          const start = Math.floor((row.year - 2021) / 10) * 10 + 2021;
-          const points = pointsByDecade.get(start) || new Set();
-          if (row.d55 > 0) points.add(row.point);
-          pointsByDecade.set(start, points);
+        seriesBySsp[targetSsp] = PERIODS.map((period) => {
+          const points = new Set();
+          targetRows.filter((row) => row.month === 0 && row.year >= period.start && row.year <= period.end).forEach((row) => {
+            if (row.d55 > 0) points.add(row.point);
+          });
+          return {
+            label: period.label,
+            value: points.size,
+          };
         });
-        seriesBySsp[targetSsp] = Array.from(pointsByDecade.entries()).sort((a, b) => a[0] - b[0]).map(([start, points]) => ({
-          label: decadeLabel(start),
-          value: points.size,
-        }));
       }
       state.rows = state.cache.get(ssp);
       drawGroupedDecadeChart("sspCompareChart", "sspCompareNote", seriesBySsp);
@@ -427,7 +359,7 @@
       return '<div class="popup-title">' + point.id + '</div>' +
         '<div class="popup-grid">' +
         '<span>시나리오</span><b>' + sspLabels[controls.ssp.value] + '</b>' +
-        '<span>시기</span><b>' + row.period.label + ' (' + row.period.range + ')</b>' +
+        '<span>연도</span><b>' + row.year + '</b>' +
         '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
         '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
         '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
@@ -442,11 +374,11 @@
 
     async function update() {
       const ssp = controls.ssp.value;
-      const period = getPeriod(controls.period.value);
+      const year = Number(controls.year.value);
       const month = Number(controls.month.value);
       const metric = controls.metric.value;
       await ensureSsp(ssp);
-      const rows = aggregatePeriodRows(state.rows, period, month);
+      const rows = state.rows.filter((row) => row.year === year && row.month === month);
       layer.clearLayers();
       const bounds = [];
       rows.forEach((row) => {
@@ -476,7 +408,7 @@
       if (highest) {
         const point = state.points[highest.point];
         document.getElementById("coreMessage").textContent =
-          sspLabels[ssp] + " " + period.label + "(" + period.range + ") " + MONTHS.find((m) => m.value === month).label +
+          sspLabels[ssp] + " " + year + "년 " + MONTHS.find((m) => m.value === month).label +
           " 기준 고위험(3등급 이상) 지점은 " + highRiskCount + "곳이며, 최고 위험 지점은 " +
           point.id + "(위도 " + point.lat.toFixed(5) + ", 경도 " + point.lon.toFixed(5) +
           ")입니다. 해당 지점의 상위 10% 레일온도는 " + highest.p90.toFixed(1) + "도입니다.";
