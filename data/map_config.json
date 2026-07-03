@@ -29,6 +29,6 @@
   ],
   "pointCount": 187,
   "ranks": 100,
-  "exceedanceProbabilityMethod": "For each point, year, and month, count rail-temperature values >=55C or >=60C across all 100 Rank members and all days, then divide by the total Rank-day sample count and report percent.",
-  "generatedAt": "2026-07-03T02:19:52.971Z"
+  "exceedanceProbabilityMethod": "For each point, year, and month, count rail-temperature values >=50C or >=55C across all 100 Rank members and all days, then divide by the total Rank-day sample count and report percent.",
+  "generatedAt": "2026-07-03T04:33:24.576Z"
 }

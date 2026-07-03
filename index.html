@@ -77,28 +77,28 @@
       <div class="field">
         <label for="metric">표시 지표</label>
         <select id="metric">
-          <option value="p55">55도 이상 발생확률</option>
-          <option value="p60">60도 이상 발생확률</option>
+          <option value="p50plus">50도 이상 발생확률</option>
+          <option value="p55plus">55도 이상 발생확률</option>
         </select>
       </div>
       <div class="status" id="status"></div>
       <div class="stats">
         <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
-        <div class="stat"><b id="statRisk">0</b><span>55도 이상 지점</span></div>
-        <div class="stat"><b id="statP90">0</b><span>최대 55도 이상 확률</span></div>
-        <div class="stat"><b id="statD60">0</b><span>최대 60도 이상 확률</span></div>
+        <div class="stat"><b id="statRisk">0</b><span>50도 이상 지점</span></div>
+        <div class="stat"><b id="statP90">0</b><span>최대 50도 이상 확률</span></div>
+        <div class="stat"><b id="statD60">0</b><span>최대 55도 이상 확률</span></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="charts" id="charts">
         <label>통계 시각화</label>
         <div class="chart-card">
-          <div class="chart-title">시기별 55도 이상 발생확률</div>
-          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 55도 이상 발생확률 막대그래프"></svg>
+          <div class="chart-title">시기별 발생확률</div>
+          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 발생확률 막대그래프"></svg>
           <p class="chart-note" id="d55TrendNote"></p>
         </div>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 55도 이상 발생확률 막대그래프"></svg>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
         <div class="chart-card">
@@ -132,8 +132,8 @@
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
     const metricLabels = {
-      p55: "55도 이상 발생확률(%)",
-      p60: "60도 이상 발생확률(%)",
+      p50plus: "50도 이상 발생확률(%)",
+      p55plus: "55도 이상 발생확률(%)",
     };
     const controls = {
       ssp: document.getElementById("ssp"),
@@ -162,6 +162,7 @@
     controls.ssp.value = "SSP585";
     controls.year.value = "2100";
     controls.month.value = "8";
+    controls.metric.value = "p50plus";
 
     async function loadJson(url) {
       const response = await fetch(url);
@@ -177,7 +178,7 @@
       const payload = await loadJson("data/railtemp_annual_" + ssp + ".json");
       const rows = payload.rows.map((row) => ({
         point: row[0], year: row[1], month: row[2], mean: row[3], p50: row[4],
-        p90: row[5], p95: row[6], max: row[7], p55: row[8], p60: row[9],
+        p90: row[5], p95: row[6], max: row[7], p50plus: row[8], p55plus: row[9],
         risk: row[10], n: row[11],
       }));
       state.cache.set(ssp, rows);
@@ -191,9 +192,16 @@
 
     function colorFor(row, metric) {
       const value = row[metric];
-      if (metric === "p55" || metric === "p60") {
+      if (metric === "p50plus") {
+        if (value >= 20) return colors[4];
+        if (value >= 10) return colors[3];
+        if (value >= 5) return colors[2];
+        if (value > 0) return colors[1];
+        return colors[0];
+      }
+      if (metric === "p55plus") {
         if (value >= 10) return colors[4];
-        if (value >= 5) return colors[3];
+        if (value >= 3) return colors[3];
         if (value >= 1) return colors[2];
         if (value > 0) return colors[1];
         return colors[0];
@@ -202,6 +210,8 @@
     }
 
     function legendRows(metric) {
+      if (metric === "p50plus") return ["0%", "5% 미만", "5% 이상", "10% 이상", "20% 이상"];
+      if (metric === "p55plus") return ["0%", "1% 미만", "1% 이상", "3% 이상", "10% 이상"];
       return ["0%", "1% 미만", "1% 이상", "5% 이상", "10% 이상"];
     }
 
@@ -255,12 +265,10 @@
         const h = chartH * d.value / maxValue;
         const y = height - pad.bottom - h;
         svg.appendChild(svgEl("rect", { x, y, width: barW, height: h, rx: 2, fill: color }));
-        if (index % 2 === 0 || index === series.length - 1) {
-          drawText(svg, d.label, x + barW / 2, height - 20);
-        }
+        drawText(svg, d.label, x + barW / 2, height - 20);
       });
       drawText(svg, maxValue.toFixed(1) + unit, 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "선택한 월 기준, 모든 지점과 연도의 55도 이상 발생확률 평균입니다.";
+      document.getElementById(noteId).textContent = "선택한 월 기준, 모든 지점과 연도의 " + metricLabels[controls.metric.value] + " 평균입니다.";
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -288,35 +296,33 @@
           const y = height - pad.bottom - h;
           svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: palette[ssp] }));
         });
-        if (groupIndex % 2 === 0 || groupIndex === labels.length - 1) {
-          drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
-        }
+        drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
       });
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준의 55도 이상 발생확률 평균입니다.";
+      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준의 " + metricLabels[controls.metric.value] + " 평균입니다.";
     }
 
     function renderTopTable(rows) {
-      const ranked = [...rows].sort((a, b) => b.p55 - a.p55 || b.p60 - a.p60 || b.max - a.max).slice(0, 10);
-      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>55도</th><th>60도</th></tr></thead><tbody>'];
+      const ranked = [...rows].sort((a, b) => b.p50plus - a.p50plus || b.p55plus - a.p55plus || b.max - a.max).slice(0, 10);
+      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>50도</th><th>55도</th></tr></thead><tbody>'];
       ranked.forEach((row) => {
         const point = state.points[row.point];
-        html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p55.toFixed(2)}%</td><td>${row.p60.toFixed(2)}%</td></tr>`);
+        html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p50plus.toFixed(2)}%</td><td>${row.p55plus.toFixed(2)}%</td></tr>`);
       });
       html.push("</tbody></table>");
       document.getElementById("topTable").innerHTML = html.join("");
     }
 
-    async function updateCharts(rows, ssp, month) {
+    async function updateCharts(rows, ssp, month, metric) {
       const decadeD55 = PERIODS.map((period) => {
-        const item = { p55: 0, count: 0 };
+        const item = { value: 0, count: 0 };
         state.rows.filter((row) => row.month === month && row.year >= period.start && row.year <= period.end).forEach((row) => {
-          item.p55 += row.p55;
+          item.value += row[metric];
           item.count++;
         });
         return {
           label: period.label,
-          value: item.p55 / Math.max(1, item.count),
+          value: item.value / Math.max(1, item.count),
         };
       });
       drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "%", "#1c7ed6");
@@ -325,14 +331,14 @@
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
         seriesBySsp[targetSsp] = PERIODS.map((period) => {
-          const item = { p55: 0, count: 0 };
+          const item = { value: 0, count: 0 };
           targetRows.filter((row) => row.month === 0 && row.year >= period.start && row.year <= period.end).forEach((row) => {
-            item.p55 += row.p55;
+            item.value += row[metric];
             item.count++;
           });
           return {
             label: period.label,
-            value: item.p55 / Math.max(1, item.count),
+            value: item.value / Math.max(1, item.count),
           };
         });
       }
@@ -349,8 +355,8 @@
         '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
         '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
         '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
-        '<span>55도 이상 발생확률</span><b>' + row.p55.toFixed(2) + '%</b>' +
-        '<span>60도 이상 발생확률</span><b>' + row.p60.toFixed(2) + '%</b>' +
+        '<span>50도 이상 발생확률</span><b>' + row.p50plus.toFixed(2) + '%</b>' +
+        '<span>55도 이상 발생확률</span><b>' + row.p55plus.toFixed(2) + '%</b>' +
         '</div>';
     }
 
@@ -378,13 +384,13 @@
       if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
 
       document.getElementById("statPoints").textContent = rows.length;
-      document.getElementById("statRisk").textContent = rows.filter((row) => row.p55 > 0).length;
-      document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p55)).toFixed(2) + "%";
-      document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.p60)).toFixed(2) + "%";
+      document.getElementById("statRisk").textContent = rows.filter((row) => row.p50plus > 0).length;
+      document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p50plus)).toFixed(2) + "%";
+      document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.p55plus)).toFixed(2) + "%";
       renderLegend(metric);
-      await updateCharts(rows, ssp, month);
+      await updateCharts(rows, ssp, month, metric);
 
-      const ranked = [...rows].sort((a, b) => b[metric] - a[metric] || b.p55 - a.p55).slice(0, 8);
+      const ranked = [...rows].sort((a, b) => b[metric] - a[metric] || b.p50plus - a.p50plus).slice(0, 8);
       const highest = ranked[0];
       const affectedCount = rows.filter((row) => row[metric] > 0).length;
       if (highest) {
