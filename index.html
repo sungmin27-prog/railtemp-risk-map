@@ -77,25 +77,20 @@
       <div class="field">
         <label for="metric">표시 지표</label>
         <select id="metric">
-          <option value="p50plus">50도 이상 발생확률</option>
-          <option value="p55plus">55도 이상 발생확률</option>
+          <option value="p50plus">50°C 이상 발생확률</option>
+          <option value="p55plus">55°C 이상 발생확률</option>
         </select>
       </div>
       <div class="status" id="status"></div>
       <div class="stats">
         <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
-        <div class="stat"><b id="statRisk">0</b><span>50도 이상 지점</span></div>
-        <div class="stat"><b id="statP90">0</b><span>최대 50도 이상 확률</span></div>
-        <div class="stat"><b id="statD60">0</b><span>최대 55도 이상 확률</span></div>
+        <div class="stat"><b id="statRisk">0</b><span>50°C 이상 지점</span></div>
+        <div class="stat"><b id="statP90">0</b><span>최대 50°C 이상 확률</span></div>
+        <div class="stat"><b id="statD60">0</b><span>최대 55°C 이상 확률</span></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="charts" id="charts">
         <label>통계 시각화</label>
-        <div class="chart-card">
-          <div class="chart-title">시기별 발생확률</div>
-          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 발생확률 막대그래프"></svg>
-          <p class="chart-note" id="d55TrendNote"></p>
-        </div>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
           <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
@@ -132,8 +127,8 @@
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
     const metricLabels = {
-      p50plus: "50도 이상 발생확률(%)",
-      p55plus: "55도 이상 발생확률(%)",
+      p50plus: "50°C 이상 발생확률(%)",
+      p55plus: "55°C 이상 발생확률(%)",
     };
     const controls = {
       ssp: document.getElementById("ssp"),
@@ -247,28 +242,20 @@
       svg.appendChild(node);
     }
 
-    function drawDecadeBarChart(svgId, noteId, series, unit, color = "#1c7ed6") {
-      const svg = document.getElementById(svgId);
-      clearSvg(svg);
-      const width = 280;
-      const height = 156;
-      const pad = { left: 42, right: 12, top: 14, bottom: 36 };
-      drawAxes(svg, width, height, pad);
-      const values = series.map((d) => d.value);
-      const maxValue = Math.max(1, ...values);
-      const chartW = width - pad.left - pad.right;
-      const chartH = height - pad.top - pad.bottom;
-      const gap = 4;
-      const barW = (chartW - gap * (series.length - 1)) / series.length;
-      series.forEach((d, index) => {
-        const x = pad.left + index * (barW + gap);
-        const h = chartH * d.value / maxValue;
-        const y = height - pad.bottom - h;
-        svg.appendChild(svgEl("rect", { x, y, width: barW, height: h, rx: 2, fill: color }));
-        drawText(svg, d.label, x + barW / 2, height - 20);
-      });
-      drawText(svg, maxValue.toFixed(1) + unit, 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "선택한 월 기준, 모든 지점과 연도의 " + metricLabels[controls.metric.value] + " 평균입니다.";
+    function drawPeriodLabel(svg, text, x, y) {
+      const match = text.match(/^(.+)\((.+)\)$/);
+      if (!match) {
+        drawText(svg, text, x, y);
+        return;
+      }
+      const node = svgEl("text", { x, y, "text-anchor": "middle", class: "chart-label" });
+      const first = svgEl("tspan", { x, y });
+      first.textContent = match[1];
+      const second = svgEl("tspan", { x, y: y + 11 });
+      second.textContent = "(" + match[2] + ")";
+      node.appendChild(first);
+      node.appendChild(second);
+      svg.appendChild(node);
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -276,7 +263,7 @@
       clearSvg(svg);
       const width = 280;
       const height = 156;
-      const pad = { left: 42, right: 12, top: 14, bottom: 36 };
+      const pad = { left: 42, right: 12, top: 14, bottom: 46 };
       drawAxes(svg, width, height, pad);
       const palette = { SSP126: "#2f9e44", SSP245: "#1c7ed6", SSP370: "#f59f00", SSP585: "#9d0208" };
       const allSeries = Object.values(seriesBySsp);
@@ -296,37 +283,27 @@
           const y = height - pad.bottom - h;
           svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: palette[ssp] }));
         });
-        drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
+        drawPeriodLabel(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 34);
       });
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준의 " + metricLabels[controls.metric.value] + " 평균입니다.";
+      document.getElementById(noteId).innerHTML =
+        "기준: 5-9월 전체<br>" +
+        "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
+        "단위: %";
     }
 
     function renderTopTable(rows) {
       const ranked = [...rows].sort((a, b) => b.p50plus - a.p50plus || b.p55plus - a.p55plus || b.max - a.max).slice(0, 10);
-      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>50도</th><th>55도</th></tr></thead><tbody>'];
+      const html = ['<table class="top-table"><thead><tr><th>위도</th><th>경도</th><th>50°C</th><th>55°C</th></tr></thead><tbody>'];
       ranked.forEach((row) => {
         const point = state.points[row.point];
-        html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p50plus.toFixed(2)}%</td><td>${row.p55plus.toFixed(2)}%</td></tr>`);
+        html.push(`<tr><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p50plus.toFixed(2)}%</td><td>${row.p55plus.toFixed(2)}%</td></tr>`);
       });
       html.push("</tbody></table>");
       document.getElementById("topTable").innerHTML = html.join("");
     }
 
     async function updateCharts(rows, ssp, month, metric) {
-      const decadeD55 = PERIODS.map((period) => {
-        const item = { value: 0, count: 0 };
-        state.rows.filter((row) => row.month === month && row.year >= period.start && row.year <= period.end).forEach((row) => {
-          item.value += row[metric];
-          item.count++;
-        });
-        return {
-          label: period.label,
-          value: item.value / Math.max(1, item.count),
-        };
-      });
-      drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "%", "#1c7ed6");
-
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
@@ -337,7 +314,7 @@
             item.count++;
           });
           return {
-            label: period.label,
+            label: period.label + "(" + period.range + ")",
             value: item.value / Math.max(1, item.count),
           };
         });
@@ -355,8 +332,8 @@
         '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
         '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
         '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
-        '<span>50도 이상 발생확률</span><b>' + row.p50plus.toFixed(2) + '%</b>' +
-        '<span>55도 이상 발생확률</span><b>' + row.p55plus.toFixed(2) + '%</b>' +
+        '<span>50°C 이상 발생확률</span><b>' + row.p50plus.toFixed(2) + '%</b>' +
+        '<span>55°C 이상 발생확률</span><b>' + row.p55plus.toFixed(2) + '%</b>' +
         '</div>';
     }
 
