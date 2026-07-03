@@ -188,7 +188,7 @@
     }
 
     function legendRows(metric) {
-      if (metric === "p50plus") return ["0%", "5% 미만", "5% 이상", "10% 이상", "20% 이상"];
+      if (metric === "p50plus") return ["0%", "0-5%", "5-10%", "10-20%", "20% 이상"];
       if (metric === "p55plus") return ["0%", "1% 미만", "1% 이상", "3% 이상", "10% 이상"];
       return ["0%", "1% 미만", "1% 이상", "5% 이상", "10% 이상"];
     }
