@@ -29,5 +29,6 @@
   ],
   "pointCount": 187,
   "ranks": 100,
-  "generatedAt": "2026-07-02T00:22:33.604Z"
+  "exceedanceDayMethod": "For each point and date, average rail temperature across 100 Rank members first, then count days where the averaged temperature is >=55C or >=60C.",
+  "generatedAt": "2026-07-03T01:13:44.491Z"
 }
