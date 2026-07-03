@@ -101,7 +101,6 @@
       { value: 6, label: "6월" },
       { value: 7, label: "7월" },
       { value: 8, label: "8월" },
-      { value: 9, label: "9월" },
     ];
     const PERIODS = [
       { id: "early", label: "전반기", range: "2021-2040", start: 2021, end: 2040 },
@@ -270,7 +269,7 @@
       });
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
-        "기준: 5-9월 전체<br>" +
+        "기준: 5-8월 전체<br>" +
         "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
         "단위: %";
     }
@@ -281,7 +280,7 @@
         const targetRows = await loadSspRows(targetSsp);
         seriesBySsp[targetSsp] = PERIODS.map((period) => {
           const item = { value: 0, count: 0 };
-          targetRows.filter((row) => row.month === 0 && row.year >= period.start && row.year <= period.end).forEach((row) => {
+          targetRows.filter((row) => row.month >= 5 && row.month <= 8 && row.year >= period.start && row.year <= period.end).forEach((row) => {
             item.value += row[metric];
             item.count++;
           });

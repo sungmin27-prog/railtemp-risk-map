@@ -3,32 +3,31 @@
   "endYear": 2100,
   "months": [
     {
-      "value": 0,
-      "label": "May-Sep"
-    },
-    {
       "value": 5,
-      "label": "May"
+      "label": "5월"
     },
     {
       "value": 6,
-      "label": "Jun"
+      "label": "6월"
     },
     {
       "value": 7,
-      "label": "Jul"
+      "label": "7월"
     },
     {
       "value": 8,
-      "label": "Aug"
-    },
-    {
-      "value": 9,
-      "label": "Sep"
+      "label": "8월"
     }
   ],
   "pointCount": 187,
   "ranks": 100,
-  "exceedanceProbabilityMethod": "For each point, year, and month, count rail-temperature values >=50C or >=55C across all 100 Rank members and all days, then divide by the total Rank-day sample count and report percent.",
-  "generatedAt": "2026-07-03T04:33:24.576Z"
+  "excludedMonths": [
+    {
+      "value": 9,
+      "label": "9월",
+      "reason": "원본 입력 및 모델 처리 점검 전까지 배포 산출에서 제외"
+    }
+  ],
+  "exceedanceProbabilityMethod": "지점, 연도, 월(5-8월)별로 100개 Rank와 해당 월의 모든 날짜 중 레일온도 50°C 또는 55°C 이상인 값을 세어 전체 Rank-일수로 나눈 비율입니다.",
+  "generatedAt": "2026-07-03T09:09:30.153Z"
 }
