@@ -201,9 +201,9 @@
       if (metric === "risk") return colors[row.risk];
       const value = row[metric];
       if (metric === "d55" || metric === "d60") {
-        if (value >= 20) return colors[4];
-        if (value >= 10) return colors[3];
-        if (value >= 3) return colors[2];
+        if (value >= 3) return colors[4];
+        if (value >= 2) return colors[3];
+        if (value >= 1) return colors[2];
         if (value > 0) return colors[1];
         return colors[0];
       }
@@ -216,7 +216,7 @@
 
     function legendRows(metric) {
       if (metric === "risk") return ["0등급", "1등급", "2등급", "3등급", "4등급"];
-      if (metric === "d55" || metric === "d60") return ["0일", "0일 초과", "3일 이상", "10일 이상", "20일 이상"];
+      if (metric === "d55" || metric === "d60") return ["0일", "1일 미만", "1일 이상", "2일 이상", "3일 이상"];
       return ["< 45", "45-50", "50-55", "55-60", ">= 60"];
     }
 
