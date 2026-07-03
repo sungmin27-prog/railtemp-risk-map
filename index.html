@@ -85,8 +85,6 @@
       <div class="stats">
         <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
         <div class="stat"><b id="statRisk">0</b><span>50°C 이상 지점</span></div>
-        <div class="stat"><b id="statP90">0</b><span>최대 50°C 이상 확률</span></div>
-        <div class="stat"><b id="statD60">0</b><span>최대 55°C 이상 확률</span></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="charts" id="charts">
@@ -95,10 +93,6 @@
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
           <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">발생확률 Top 10 표</div>
-          <div id="topTable"></div>
         </div>
       </div>
     </aside>
@@ -292,17 +286,6 @@
         "단위: %";
     }
 
-    function renderTopTable(rows) {
-      const ranked = [...rows].sort((a, b) => b.p50plus - a.p50plus || b.p55plus - a.p55plus || b.max - a.max).slice(0, 10);
-      const html = ['<table class="top-table"><thead><tr><th>위도</th><th>경도</th><th>50°C</th><th>55°C</th></tr></thead><tbody>'];
-      ranked.forEach((row) => {
-        const point = state.points[row.point];
-        html.push(`<tr><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p50plus.toFixed(2)}%</td><td>${row.p55plus.toFixed(2)}%</td></tr>`);
-      });
-      html.push("</tbody></table>");
-      document.getElementById("topTable").innerHTML = html.join("");
-    }
-
     async function updateCharts(rows, ssp, month, metric) {
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
@@ -321,7 +304,6 @@
       }
       state.rows = state.cache.get(ssp);
       drawGroupedDecadeChart("sspCompareChart", "sspCompareNote", seriesBySsp);
-      renderTopTable(rows);
     }
 
     function popup(row, point) {
@@ -362,8 +344,6 @@
 
       document.getElementById("statPoints").textContent = rows.length;
       document.getElementById("statRisk").textContent = rows.filter((row) => row.p50plus > 0).length;
-      document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p50plus)).toFixed(2) + "%";
-      document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.p55plus)).toFixed(2) + "%";
       renderLegend(metric);
       await updateCharts(rows, ssp, month, metric);
 
