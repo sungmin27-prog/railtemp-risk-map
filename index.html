@@ -70,43 +70,39 @@
   <div class="app">
     <aside>
       <h1>레일온도 기후리스크 지도</h1>
-      <div class="message-box" id="coreMessage">선택 조건의 고위험 지점을 계산 중입니다.</div>
+      <div class="message-box" id="coreMessage">선택 조건의 발생확률을 계산 중입니다.</div>
       <div class="field"><label for="ssp">기후 시나리오</label><select id="ssp"></select></div>
       <div class="field"><label for="year">연도</label><select id="year"></select></div>
       <div class="field"><label for="month">월</label><select id="month"></select></div>
       <div class="field">
         <label for="metric">표시 지표</label>
         <select id="metric">
-          <option value="risk">위험등급</option>
-          <option value="p90">무더운 날 레일온도(상위 10%)</option>
-          <option value="p95">매우 무더운 날 레일온도(상위 5%)</option>
-          <option value="max">최대 레일온도</option>
-          <option value="d55">55도 초과일수</option>
-          <option value="d60">60도 초과일수</option>
+          <option value="p55">55도 이상 발생확률</option>
+          <option value="p60">60도 이상 발생확률</option>
         </select>
       </div>
       <div class="status" id="status"></div>
       <div class="stats">
         <div class="stat"><b id="statPoints">0</b><span>지점 수</span></div>
-        <div class="stat"><b id="statRisk">0</b><span>4등급 지점</span></div>
-        <div class="stat"><b id="statP90">0</b><span>최고 무더운 날 온도</span></div>
-        <div class="stat"><b id="statD60">0</b><span>최대 60도 초과일수</span></div>
+        <div class="stat"><b id="statRisk">0</b><span>55도 이상 지점</span></div>
+        <div class="stat"><b id="statP90">0</b><span>최대 55도 이상 확률</span></div>
+        <div class="stat"><b id="statD60">0</b><span>최대 60도 이상 확률</span></div>
       </div>
       <div class="legend" id="legend"></div>
       <div class="charts" id="charts">
         <label>통계 시각화</label>
         <div class="chart-card">
-          <div class="chart-title">시기별 55도 초과일수</div>
-          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 55도 초과 연평균일수 막대그래프"></svg>
+          <div class="chart-title">시기별 55도 이상 발생확률</div>
+          <svg class="chart-svg" id="d55DecadeChart" viewBox="0 0 280 156" role="img" aria-label="전반기 중반기 후반기 55도 이상 발생확률 막대그래프"></svg>
           <p class="chart-note" id="d55TrendNote"></p>
         </div>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 55도 초과 지점 수 막대그래프"></svg>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 55도 이상 발생확률 막대그래프"></svg>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
         <div class="chart-card">
-          <div class="chart-title">고위험 Top 10 표</div>
+          <div class="chart-title">발생확률 Top 10 표</div>
           <div id="topTable"></div>
         </div>
       </div>
@@ -136,12 +132,8 @@
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
     const metricLabels = {
-      risk: "위험등급",
-      p90: "무더운 날 레일온도(상위 10%, 도)",
-      p95: "매우 무더운 날 레일온도(상위 5%, 도)",
-      max: "최대 레일온도(도)",
-      d55: "55도 초과일수",
-      d60: "60도 초과일수",
+      p55: "55도 이상 발생확률(%)",
+      p60: "60도 이상 발생확률(%)",
     };
     const controls = {
       ssp: document.getElementById("ssp"),
@@ -185,7 +177,7 @@
       const payload = await loadJson("data/railtemp_annual_" + ssp + ".json");
       const rows = payload.rows.map((row) => ({
         point: row[0], year: row[1], month: row[2], mean: row[3], p50: row[4],
-        p90: row[5], p95: row[6], max: row[7], d55: row[8], d60: row[9],
+        p90: row[5], p95: row[6], max: row[7], p55: row[8], p60: row[9],
         risk: row[10], n: row[11],
       }));
       state.cache.set(ssp, rows);
@@ -198,26 +190,19 @@
     }
 
     function colorFor(row, metric) {
-      if (metric === "risk") return colors[row.risk];
       const value = row[metric];
-      if (metric === "d55" || metric === "d60") {
-        if (value >= 3) return colors[4];
-        if (value >= 2) return colors[3];
+      if (metric === "p55" || metric === "p60") {
+        if (value >= 10) return colors[4];
+        if (value >= 5) return colors[3];
         if (value >= 1) return colors[2];
         if (value > 0) return colors[1];
         return colors[0];
       }
-      if (value >= 60) return colors[4];
-      if (value >= 55) return colors[3];
-      if (value >= 50) return colors[2];
-      if (value >= 45) return colors[1];
       return colors[0];
     }
 
     function legendRows(metric) {
-      if (metric === "risk") return ["0등급", "1등급", "2등급", "3등급", "4등급"];
-      if (metric === "d55" || metric === "d60") return ["0일", "1일 미만", "1일 이상", "2일 이상", "3일 이상"];
-      return ["< 45", "45-50", "50-55", "55-60", ">= 60"];
+      return ["0%", "1% 미만", "1% 이상", "5% 이상", "10% 이상"];
     }
 
     function renderLegend(metric) {
@@ -274,8 +259,8 @@
           drawText(svg, d.label, x + barW / 2, height - 20);
         }
       });
-      drawText(svg, maxValue.toFixed(unit === "도" ? 1 : 0) + unit, 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = `전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)별 ${unit === "일" ? "연평균 55도 초과일수" : "최대 무더운 날 레일온도"}입니다.`;
+      drawText(svg, maxValue.toFixed(1) + unit, 6, pad.top + 4, "start");
+      document.getElementById(noteId).textContent = "선택한 월 기준, 모든 지점과 연도의 55도 이상 발생확률 평균입니다.";
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -307,16 +292,16 @@
           drawText(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 20);
         }
       });
-      drawText(svg, maxValue.toFixed(0) + "곳", 6, pad.top + 4, "start");
-      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준입니다. 전반기(2021-2040), 중반기(2041-2070), 후반기(2071-2100)를 비교합니다.";
+      drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
+      document.getElementById(noteId).textContent = "월 구분 없이 5-9월 계절 기준의 55도 이상 발생확률 평균입니다.";
     }
 
     function renderTopTable(rows) {
-      const ranked = [...rows].sort((a, b) => b.risk - a.risk || b.p90 - a.p90 || b.max - a.max).slice(0, 10);
-      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>무더운날</th><th>최대</th></tr></thead><tbody>'];
+      const ranked = [...rows].sort((a, b) => b.p55 - a.p55 || b.p60 - a.p60 || b.max - a.max).slice(0, 10);
+      const html = ['<table class="top-table"><thead><tr><th>지점</th><th>위도</th><th>경도</th><th>55도</th><th>60도</th></tr></thead><tbody>'];
       ranked.forEach((row) => {
         const point = state.points[row.point];
-        html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p90.toFixed(1)}</td><td>${row.max.toFixed(1)}</td></tr>`);
+        html.push(`<tr><td>${point.id}</td><td>${point.lat.toFixed(3)}</td><td>${point.lon.toFixed(3)}</td><td>${row.p55.toFixed(2)}%</td><td>${row.p60.toFixed(2)}%</td></tr>`);
       });
       html.push("</tbody></table>");
       document.getElementById("topTable").innerHTML = html.join("");
@@ -324,29 +309,30 @@
 
     async function updateCharts(rows, ssp, month) {
       const decadeD55 = PERIODS.map((period) => {
-        const item = { d55: 0, years: new Set() };
+        const item = { p55: 0, count: 0 };
         state.rows.filter((row) => row.month === month && row.year >= period.start && row.year <= period.end).forEach((row) => {
-          item.d55 += row.d55;
-          item.years.add(row.year);
+          item.p55 += row.p55;
+          item.count++;
         });
         return {
           label: period.label,
-          value: item.d55 / Math.max(1, item.years.size),
+          value: item.p55 / Math.max(1, item.count),
         };
       });
-      drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "일", "#1c7ed6");
+      drawDecadeBarChart("d55DecadeChart", "d55TrendNote", decadeD55, "%", "#1c7ed6");
 
       const seriesBySsp = {};
       for (const targetSsp of SSPS) {
         const targetRows = await loadSspRows(targetSsp);
         seriesBySsp[targetSsp] = PERIODS.map((period) => {
-          const points = new Set();
+          const item = { p55: 0, count: 0 };
           targetRows.filter((row) => row.month === 0 && row.year >= period.start && row.year <= period.end).forEach((row) => {
-            if (row.d55 > 0) points.add(row.point);
+            item.p55 += row.p55;
+            item.count++;
           });
           return {
             label: period.label,
-            value: points.size,
+            value: item.p55 / Math.max(1, item.count),
           };
         });
       }
@@ -363,12 +349,8 @@
         '<span>월</span><b>' + MONTHS.find((m) => m.value === row.month).label + '</b>' +
         '<span>위도</span><b>' + point.lat.toFixed(5) + '</b>' +
         '<span>경도</span><b>' + point.lon.toFixed(5) + '</b>' +
-        '<span>무더운 날 레일온도</span><b>' + row.p90.toFixed(1) + '도</b>' +
-        '<span>매우 무더운 날 레일온도</span><b>' + row.p95.toFixed(1) + '도</b>' +
-        '<span>최대</span><b>' + row.max.toFixed(1) + '도</b>' +
-        '<span>55도 초과</span><b>' + row.d55.toFixed(2) + '일</b>' +
-        '<span>60도 초과</span><b>' + row.d60.toFixed(2) + '일</b>' +
-        '<span>위험등급</span><b>' + row.risk + '</b>' +
+        '<span>55도 이상 발생확률</span><b>' + row.p55.toFixed(2) + '%</b>' +
+        '<span>60도 이상 발생확률</span><b>' + row.p60.toFixed(2) + '%</b>' +
         '</div>';
     }
 
@@ -384,7 +366,7 @@
       rows.forEach((row) => {
         const point = state.points[row.point];
         const marker = L.circleMarker([point.lat, point.lon], {
-          radius: metric === "risk" ? 5 + row.risk : 6,
+          radius: 6,
           color: "#263238",
           weight: 0.5,
           fillColor: colorFor(row, metric),
@@ -396,22 +378,22 @@
       if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
 
       document.getElementById("statPoints").textContent = rows.length;
-      document.getElementById("statRisk").textContent = rows.filter((row) => row.risk === 4).length;
-      document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p90)).toFixed(1);
-      document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.d60)).toFixed(1);
+      document.getElementById("statRisk").textContent = rows.filter((row) => row.p55 > 0).length;
+      document.getElementById("statP90").textContent = Math.max(...rows.map((row) => row.p55)).toFixed(2) + "%";
+      document.getElementById("statD60").textContent = Math.max(...rows.map((row) => row.p60)).toFixed(2) + "%";
       renderLegend(metric);
       await updateCharts(rows, ssp, month);
 
-      const ranked = [...rows].sort((a, b) => b.risk - a.risk || b.p90 - a.p90).slice(0, 8);
+      const ranked = [...rows].sort((a, b) => b[metric] - a[metric] || b.p55 - a.p55).slice(0, 8);
       const highest = ranked[0];
-      const highRiskCount = rows.filter((row) => row.risk >= 3).length;
+      const affectedCount = rows.filter((row) => row[metric] > 0).length;
       if (highest) {
         const point = state.points[highest.point];
         document.getElementById("coreMessage").textContent =
           sspLabels[ssp] + " " + year + "년 " + MONTHS.find((m) => m.value === month).label +
-          " 기준 고위험(3등급 이상) 지점은 " + highRiskCount + "곳이며, 최고 위험 지점은 " +
+          " 기준 " + metricLabels[metric] + "이 0%보다 큰 지점은 " + affectedCount + "곳이며, 가장 높은 지점은 " +
           point.id + "(위도 " + point.lat.toFixed(5) + ", 경도 " + point.lon.toFixed(5) +
-          ")입니다. 해당 지점의 무더운 날 레일온도(상위 10%)는 " + highest.p90.toFixed(1) + "도입니다.";
+          ")입니다. 해당 지점의 " + metricLabels[metric] + "은 " + highest[metric].toFixed(2) + "%입니다.";
       }
     }
 
