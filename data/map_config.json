@@ -3,6 +3,10 @@
   "endYear": 2100,
   "months": [
     {
+      "value": 0,
+      "label": "5-8월"
+    },
+    {
       "value": 5,
       "label": "5월"
     },
@@ -25,9 +29,9 @@
     {
       "value": 9,
       "label": "9월",
-      "reason": "원본 입력 및 모델 처리 점검 전까지 배포 산출에서 제외"
+      "reason": "현재 배포 산출에서 제외"
     }
   ],
   "exceedanceProbabilityMethod": "지점, 연도, 월(5-8월)별로 100개 Rank와 해당 월의 모든 날짜 중 레일온도 50°C 또는 55°C 이상인 값을 세어 전체 Rank-일수로 나눈 비율입니다.",
-  "generatedAt": "2026-07-03T09:09:30.153Z"
+  "generatedAt": "2026-07-07T11:52:30.258Z"
 }
