@@ -108,7 +108,7 @@
       { id: "mid", label: "중반기", range: "2041-2070", start: 2041, end: 2070 },
       { id: "late", label: "후반기", range: "2071-2100", start: 2071, end: 2100 },
     ];
-    const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#9d0208"];
+    const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#c92a2a", "#7f1d1d"];
     const metricLabels = {
       p50plus: "50°C 이상 발생확률(%)",
       p55plus: "55°C 이상 발생확률(%)",
@@ -194,15 +194,17 @@
     function colorFor(row, metric) {
       const value = row[metric];
       if (metric === "p50plus") {
-        if (value >= 20) return colors[4];
-        if (value >= 10) return colors[3];
-        if (value >= 5) return colors[2];
+        if (value >= 70) return colors[5];
+        if (value >= 50) return colors[4];
+        if (value >= 30) return colors[3];
+        if (value >= 10) return colors[2];
         if (value > 0) return colors[1];
         return colors[0];
       }
       if (metric === "p55plus") {
+        if (value >= 20) return colors[5];
         if (value >= 10) return colors[4];
-        if (value >= 3) return colors[3];
+        if (value >= 5) return colors[3];
         if (value >= 1) return colors[2];
         if (value > 0) return colors[1];
         return colors[0];
@@ -211,9 +213,9 @@
     }
 
     function legendRows(metric) {
-      if (metric === "p50plus") return ["0%", "0-5%", "5-10%", "10-20%", "20% 이상"];
-      if (metric === "p55plus") return ["0%", "1% 미만", "1% 이상", "3% 이상", "10% 이상"];
-      return ["0%", "1% 미만", "1% 이상", "5% 이상", "10% 이상"];
+      if (metric === "p50plus") return ["0%", "0-10%", "10-30%", "30-50%", "50-70%", "70% 이상"];
+      if (metric === "p55plus") return ["0%", "0-1%", "1-5%", "5-10%", "10-20%", "20% 이상"];
+      return ["0%", "0-1%", "1-5%", "5-10%", "10-20%", "20% 이상"];
     }
 
     function renderLegend(metric) {
