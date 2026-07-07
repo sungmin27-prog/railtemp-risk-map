@@ -30,5 +30,5 @@
   "pointCount": 187,
   "ranks": 100,
   "exceedanceProbabilityMethod": "지점, 연도, 월(5-9월)별로 100개 Rank와 해당 월의 모든 날짜 중 레일온도 50°C 또는 55°C 이상인 값을 세어 전체 Rank-일수로 나눈 비율입니다.",
-  "generatedAt": "2026-07-07T12:19:36.691Z"
+  "generatedAt": "2026-07-07T12:40:33.461Z"
 }
