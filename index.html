@@ -101,6 +101,7 @@
       { value: 6, label: "6월" },
       { value: 7, label: "7월" },
       { value: 8, label: "8월" },
+      { value: 9, label: "9월" },
     ];
     const PERIODS = [
       { id: "early", label: "전반기", range: "2021-2040", start: 2021, end: 2040 },
@@ -133,6 +134,29 @@
       node.textContent = text;
       select.appendChild(node);
     }
+
+    function applyDisplayOffsets(points) {
+      const groups = new Map();
+      points.forEach((point) => {
+        const key = point.lat.toFixed(5) + "," + point.lon.toFixed(5);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(point);
+      });
+      groups.forEach((items) => {
+        if (items.length === 1) {
+          items[0].displayLat = items[0].lat;
+          items[0].displayLon = items[0].lon;
+          return;
+        }
+        const radius = 0.006 + Math.min(items.length, 16) * 0.00035;
+        items.forEach((point, index) => {
+          const angle = Math.PI * 2 * index / items.length;
+          point.displayLat = point.lat + Math.sin(angle) * radius;
+          point.displayLon = point.lon + Math.cos(angle) * radius;
+        });
+      });
+    }
+
     SSPS.forEach((ssp) => option(controls.ssp, ssp, sspLabels[ssp]));
     for (let year = 2021; year <= 2100; year++) option(controls.year, year, year);
     MONTHS.forEach((month) => option(controls.month, month.value, month.label));
@@ -269,7 +293,7 @@
       });
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
-        "기준: 5-8월 전체<br>" +
+        "기준: 5-9월 전체<br>" +
         "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
         "단위: %";
     }
@@ -280,7 +304,7 @@
         const targetRows = await loadSspRows(targetSsp);
         seriesBySsp[targetSsp] = PERIODS.map((period) => {
           const item = { value: 0, count: 0 };
-          targetRows.filter((row) => row.month >= 5 && row.month <= 8 && row.year >= period.start && row.year <= period.end).forEach((row) => {
+          targetRows.filter((row) => row.month >= 5 && row.month <= 9 && row.year >= period.start && row.year <= period.end).forEach((row) => {
             item.value += row[metric];
             item.count++;
           });
@@ -318,7 +342,7 @@
       const bounds = [];
       rows.forEach((row) => {
         const point = state.points[row.point];
-        const marker = L.circleMarker([point.lat, point.lon], {
+        const marker = L.circleMarker([point.displayLat, point.displayLon], {
           radius: 6,
           color: "#263238",
           weight: 0.5,
@@ -326,7 +350,7 @@
           fillOpacity: 0.82,
         }).bindPopup(popup(row, point));
         marker.addTo(layer);
-        bounds.push([point.lat, point.lon]);
+        bounds.push([point.displayLat, point.displayLon]);
       });
       if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
 
@@ -341,6 +365,7 @@
       statusEl.textContent = "지점 데이터를 불러오는 중입니다.";
       const pointsPayload = await loadJson("data/points.json");
       state.points = pointsPayload.rows.map((row) => ({ id: row[0], lat: row[1], lon: row[2] }));
+      applyDisplayOffsets(state.points);
       Object.values(controls).forEach((control) => control.addEventListener("change", () => {
         update().catch((error) => { statusEl.textContent = error.message; });
       }));
