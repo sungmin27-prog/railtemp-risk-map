@@ -36,6 +36,8 @@
     .chart-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
     .chart-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
     .chart-svg { display: block; width: 100%; height: 178px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
+    .chart-periods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 5px; color: var(--muted); font-size: 10px; text-align: center; }
+    .chart-periods b { display: block; color: #52616d; font-weight: 700; }
     .chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; margin-top: 7px; font-size: 11px; color: var(--muted); }
     .chart-legend-item { display: flex; align-items: center; gap: 5px; min-width: 0; }
     .chart-legend-swatch { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
@@ -85,6 +87,7 @@
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
           <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 178" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
+          <div class="chart-periods" id="sspComparePeriods"></div>
           <div class="chart-legend" id="sspCompareLegend"></div>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
@@ -279,17 +282,6 @@
       svg.appendChild(node);
     }
 
-    function drawPeriodLabel(svg, label, range, x, y) {
-      const node = svgEl("text", { x, y, "text-anchor": "middle", class: "chart-label" });
-      const first = svgEl("tspan", { x, y });
-      first.textContent = label;
-      const second = svgEl("tspan", { x, y: y + 11 });
-      second.textContent = "(" + range + ")";
-      node.appendChild(first);
-      node.appendChild(second);
-      svg.appendChild(node);
-    }
-
     function renderSspLegend() {
       const legend = document.getElementById("sspCompareLegend");
       legend.innerHTML = "";
@@ -301,15 +293,31 @@
       });
     }
 
+    function renderPeriodLabels(periods) {
+      const container = document.getElementById("sspComparePeriods");
+      container.innerHTML = "";
+      periods.forEach((period) => {
+        const item = document.createElement("div");
+        item.innerHTML = "<b>" + period.label + "</b><span>(" + period.range + ")</span>";
+        container.appendChild(item);
+      });
+    }
+
+    function quantile(values, p) {
+      if (!values.length) return 0;
+      const sorted = values.slice().sort((a, b) => a - b);
+      return sorted[Math.floor((sorted.length - 1) * p)];
+    }
+
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
       const svg = document.getElementById(svgId);
       clearSvg(svg);
       const width = 280;
       const height = 178;
-      const pad = { left: 42, right: 12, top: 14, bottom: 58 };
+      const pad = { left: 42, right: 12, top: 14, bottom: 20 };
       drawAxes(svg, width, height, pad);
       const allSeries = Object.values(seriesBySsp);
-      const allValues = allSeries.flat().map((d) => d.value);
+      const allValues = allSeries.flat().flatMap((d) => [d.value, d.q75]);
       const maxValue = Math.max(1, ...allValues);
       const labels = allSeries[0].map((d) => d.label);
       const chartW = width - pad.left - pad.right;
@@ -320,19 +328,28 @@
       labels.forEach((label, groupIndex) => {
         SSPS.forEach((ssp, sspIndex) => {
           const value = seriesBySsp[ssp][groupIndex].value;
+          const q25 = seriesBySsp[ssp][groupIndex].q25;
+          const q75 = seriesBySsp[ssp][groupIndex].q75;
           const h = chartH * value / maxValue;
           const x = pad.left + groupIndex * (groupW + groupGap) + sspIndex * barW;
           const y = height - pad.bottom - h;
-          svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: sspPalette[ssp] }));
+          const w = Math.max(1, barW - 1);
+          svg.appendChild(svgEl("rect", { x, y, width: w, height: h, rx: 1, fill: sspPalette[ssp] }));
+          const cx = x + w / 2;
+          const y25 = height - pad.bottom - chartH * q25 / maxValue;
+          const y75 = height - pad.bottom - chartH * q75 / maxValue;
+          svg.appendChild(svgEl("line", { x1: cx, y1: y75, x2: cx, y2: y25, stroke: "#263238", "stroke-width": 1 }));
+          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: y75, x2: cx + 2.5, y2: y75, stroke: "#263238", "stroke-width": 1 }));
+          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: y25, x2: cx + 2.5, y2: y25, stroke: "#263238", "stroke-width": 1 }));
         });
-        const item = allSeries[0][groupIndex];
-        drawPeriodLabel(svg, item.label, item.range, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 47);
       });
+      renderPeriodLabels(allSeries[0]);
       renderSspLegend();
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
         "기준: 5-9월 전체<br>" +
         "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
+        "불확실도: 지점·연도·월 값의 25-75% 범위<br>" +
         "단위: %";
     }
 
@@ -342,14 +359,18 @@
         const targetRows = await loadSspRows(targetSsp);
         seriesBySsp[targetSsp] = PERIODS.map((period) => {
           const item = { value: 0, count: 0 };
+          const values = [];
           targetRows.filter((row) => row.month >= 5 && row.month <= 9 && row.year >= period.start && row.year <= period.end).forEach((row) => {
             item.value += row[metric];
             item.count++;
+            values.push(row[metric]);
           });
           return {
             label: period.label,
             range: period.range,
             value: item.value / Math.max(1, item.count),
+            q25: quantile(values, 0.25),
+            q75: quantile(values, 0.75),
           };
         });
       }
