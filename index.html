@@ -121,12 +121,13 @@
       metric: document.getElementById("metric"),
     };
     const statusEl = document.getElementById("status");
-    const state = { points: [], cache: new Map(), rows: [] };
+    const state = { points: [], railLines: [], cache: new Map(), rows: [] };
     const map = L.map("map", { preferCanvas: true }).setView([36.3, 127.8], 7);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
       maxZoom: 18,
     }).addTo(map);
+    map.attributionControl.addAttribution("Railway data &copy; OpenStreetMap contributors");
     const layer = L.layerGroup().addTo(map);
 
     function option(select, value, text) {
@@ -230,7 +231,7 @@
       });
       const note = document.createElement("p");
       note.className = "legend-note";
-      note.textContent = "선은 인접 지점을 연결한 보조 표시이며 실제 철도 선형과 다를 수 있습니다. 점은 실제 계산 지점입니다.";
+      note.textContent = "선은 OpenStreetMap 철도 선형을 가장 가까운 계산 지점의 값으로 색칠한 표시입니다. 점은 실제 계산 지점입니다.";
       legend.appendChild(note);
     }
 
@@ -348,29 +349,50 @@
       return 2 * radius * Math.asin(Math.sqrt(h));
     }
 
-    function drawConnectionLines(rows, metric) {
+    function prepareRailLines(features) {
+      state.railLines = features.map((feature) => {
+        let bestPoint = 0;
+        let bestDistance = Infinity;
+        const coordinates = feature.geometry.coordinates || [];
+        const stride = Math.max(1, Math.floor(coordinates.length / 12));
+        for (let coordIndex = 0; coordIndex < coordinates.length; coordIndex += stride) {
+          const coord = coordinates[coordIndex];
+          const sample = { lat: coord[1], lon: coord[0] };
+          state.points.forEach((point, pointIndex) => {
+            const distance = distanceKm(sample, point);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              bestPoint = pointIndex;
+            }
+          });
+        }
+        return {
+          point: bestPoint,
+          latLngs: coordinates.map((coord) => [coord[1], coord[0]]),
+        };
+      });
+    }
+
+    function drawRailLines(rows, metric) {
       const rowsByPoint = new Map(rows.map((row) => [row.point, row]));
-      const maxSegmentKm = 120;
-      for (let index = 1; index < state.points.length; index++) {
-        const prevPoint = state.points[index - 1];
-        const point = state.points[index];
-        const prevRow = rowsByPoint.get(index - 1);
-        const row = rowsByPoint.get(index);
-        if (!prevRow || !row) continue;
-        if (distanceKm(prevPoint, point) > maxSegmentKm) continue;
-        const segmentMetric = (prevRow[metric] + row[metric]) / 2;
-        const segmentRow = { [metric]: segmentMetric };
-        L.polyline(
-          [[prevPoint.displayLat, prevPoint.displayLon], [point.displayLat, point.displayLon]],
-          {
-            color: colorFor(segmentRow, metric),
-            weight: 4,
-            opacity: 0.72,
-            lineCap: "round",
-            lineJoin: "round",
-          },
-        ).addTo(layer);
-      }
+      const buckets = new Map();
+      state.railLines.forEach((railLine) => {
+        const row = rowsByPoint.get(railLine.point);
+        if (!row) return;
+        const color = colorFor(row, metric);
+        if (!buckets.has(color)) buckets.set(color, []);
+        buckets.get(color).push(railLine.latLngs);
+      });
+      buckets.forEach((segments, color) => {
+        L.polyline(segments, {
+          color,
+          weight: 3.2,
+          opacity: 0.74,
+          lineCap: "round",
+          lineJoin: "round",
+          interactive: false,
+        }).addTo(layer);
+      });
     }
 
     async function update() {
@@ -382,7 +404,7 @@
       const rows = state.rows.filter((row) => row.year === year && row.month === month);
       layer.clearLayers();
       const bounds = [];
-      drawConnectionLines(rows, metric);
+      drawRailLines(rows, metric);
       rows.forEach((row) => {
         const point = state.points[row.point];
         const marker = L.circleMarker([point.displayLat, point.displayLon], {
@@ -409,6 +431,9 @@
       const pointsPayload = await loadJson("data/points.json");
       state.points = pointsPayload.rows.map((row) => ({ id: row[0], lat: row[1], lon: row[2] }));
       applyDisplayOffsets(state.points);
+      statusEl.textContent = "철도 노선 데이터를 불러오는 중입니다.";
+      const railPayload = await loadJson("data/rail_lines.geojson");
+      prepareRailLines(railPayload.features || []);
       Object.values(controls).forEach((control) => control.addEventListener("change", () => {
         update().catch((error) => { statusEl.textContent = error.message; });
       }));
