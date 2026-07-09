@@ -104,6 +104,8 @@
       { value: 8, label: "8월" },
       { value: 9, label: "9월" },
     ];
+    const START_YEAR = 2021;
+    const END_YEAR = 2100;
     const PERIODS = [
       { id: "early", label: "전반기", range: "2021-2040", start: 2021, end: 2040 },
       { id: "mid", label: "중반기", range: "2041-2070", start: 2041, end: 2070 },
@@ -160,12 +162,28 @@
     }
 
     SSPS.forEach((ssp) => option(controls.ssp, ssp, sspLabels[ssp]));
-    for (let year = 2021; year <= 2100; year++) option(controls.year, year, year);
+    for (let year = START_YEAR; year <= END_YEAR; year++) option(controls.year, year, year);
     MONTHS.forEach((month) => option(controls.month, month.value, month.label));
     controls.ssp.value = "SSP585";
-    controls.year.value = "2100";
-    controls.month.value = "8";
+    const initialDate = nearestDataDate(new Date());
+    controls.year.value = initialDate.year;
+    controls.month.value = initialDate.month;
     controls.metric.value = "p50plus";
+
+    function nearestDataDate(date) {
+      const year = Math.min(END_YEAR, Math.max(START_YEAR, date.getFullYear()));
+      const currentMonth = date.getMonth() + 1;
+      let month = MONTHS[0].value;
+      let monthDistance = Infinity;
+      MONTHS.forEach((candidate) => {
+        const distance = Math.abs(candidate.value - currentMonth);
+        if (distance < monthDistance) {
+          month = candidate.value;
+          monthDistance = distance;
+        }
+      });
+      return { year, month };
+    }
 
     async function loadJson(url) {
       const response = await fetch(url);
@@ -256,17 +274,12 @@
       svg.appendChild(node);
     }
 
-    function drawPeriodLabel(svg, text, x, y) {
-      const match = text.match(/^(.+)\((.+)\)$/);
-      if (!match) {
-        drawText(svg, text, x, y);
-        return;
-      }
+    function drawPeriodLabel(svg, label, range, x, y) {
       const node = svgEl("text", { x, y, "text-anchor": "middle", class: "chart-label" });
       const first = svgEl("tspan", { x, y });
-      first.textContent = match[1];
+      first.textContent = label;
       const second = svgEl("tspan", { x, y: y + 11 });
-      second.textContent = "(" + match[2] + ")";
+      second.textContent = "(" + range + ")";
       node.appendChild(first);
       node.appendChild(second);
       svg.appendChild(node);
@@ -297,7 +310,8 @@
           const y = height - pad.bottom - h;
           svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: palette[ssp] }));
         });
-        drawPeriodLabel(svg, label, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 34);
+        const item = allSeries[0][groupIndex];
+        drawPeriodLabel(svg, item.label, item.range, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 34);
       });
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
@@ -317,7 +331,8 @@
             item.count++;
           });
           return {
-            label: period.label + "(" + period.range + ")",
+            label: period.label,
+            range: period.range,
             value: item.value / Math.max(1, item.count),
           };
         });
