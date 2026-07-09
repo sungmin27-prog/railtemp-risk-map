@@ -30,6 +30,7 @@
     .stat span { color: var(--muted); font-size: 12px; }
     .legend, .charts { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 14px; }
     .legend-row { display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 8px; margin: 7px 0; font-size: 13px; }
+    .legend-note { margin: 9px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
     .swatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); }
     .chart-card { margin-top: 10px; }
     .chart-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
@@ -227,6 +228,10 @@
         row.innerHTML = '<i class="swatch" style="background:' + colors[index] + '"></i><span>' + label + '</span>';
         legend.appendChild(row);
       });
+      const note = document.createElement("p");
+      note.className = "legend-note";
+      note.textContent = "선은 인접 지점을 연결한 보조 표시이며 실제 철도 선형과 다를 수 있습니다. 점은 실제 계산 지점입니다.";
+      legend.appendChild(note);
     }
 
     function clearSvg(svg) {
@@ -333,6 +338,41 @@
         '</div>';
     }
 
+    function distanceKm(a, b) {
+      const radius = 6371;
+      const dLat = (b.lat - a.lat) * Math.PI / 180;
+      const dLon = (b.lon - a.lon) * Math.PI / 180;
+      const lat1 = a.lat * Math.PI / 180;
+      const lat2 = b.lat * Math.PI / 180;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+      return 2 * radius * Math.asin(Math.sqrt(h));
+    }
+
+    function drawConnectionLines(rows, metric) {
+      const rowsByPoint = new Map(rows.map((row) => [row.point, row]));
+      const maxSegmentKm = 120;
+      for (let index = 1; index < state.points.length; index++) {
+        const prevPoint = state.points[index - 1];
+        const point = state.points[index];
+        const prevRow = rowsByPoint.get(index - 1);
+        const row = rowsByPoint.get(index);
+        if (!prevRow || !row) continue;
+        if (distanceKm(prevPoint, point) > maxSegmentKm) continue;
+        const segmentMetric = (prevRow[metric] + row[metric]) / 2;
+        const segmentRow = { [metric]: segmentMetric };
+        L.polyline(
+          [[prevPoint.displayLat, prevPoint.displayLon], [point.displayLat, point.displayLon]],
+          {
+            color: colorFor(segmentRow, metric),
+            weight: 4,
+            opacity: 0.72,
+            lineCap: "round",
+            lineJoin: "round",
+          },
+        ).addTo(layer);
+      }
+    }
+
     async function update() {
       const ssp = controls.ssp.value;
       const year = Number(controls.year.value);
@@ -342,6 +382,7 @@
       const rows = state.rows.filter((row) => row.year === year && row.month === month);
       layer.clearLayers();
       const bounds = [];
+      drawConnectionLines(rows, metric);
       rows.forEach((row) => {
         const point = state.points[row.point];
         const marker = L.circleMarker([point.displayLat, point.displayLon], {
