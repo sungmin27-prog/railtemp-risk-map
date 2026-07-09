@@ -35,7 +35,10 @@
     .chart-card { margin-top: 10px; }
     .chart-title { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
     .chart-note { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
-    .chart-svg { display: block; width: 100%; height: 156px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
+    .chart-svg { display: block; width: 100%; height: 178px; border: 1px solid #edf1f4; border-radius: 6px; background: #fbfcfd; }
+    .chart-legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; margin-top: 7px; font-size: 11px; color: var(--muted); }
+    .chart-legend-item { display: flex; align-items: center; gap: 5px; min-width: 0; }
+    .chart-legend-swatch { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
     .chart-axis { stroke: #ccd5dd; stroke-width: 1; }
     .chart-line { fill: none; stroke: #1c7ed6; stroke-width: 2.5; }
     .chart-line-secondary { fill: none; stroke: #9d0208; stroke-width: 2.5; }
@@ -81,7 +84,8 @@
         <label>통계 시각화</label>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 156" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 178" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
+          <div class="chart-legend" id="sspCompareLegend"></div>
           <p class="chart-note" id="sspCompareNote"></p>
         </div>
       </div>
@@ -112,6 +116,7 @@
       { id: "late", label: "후반기", range: "2071-2100", start: 2071, end: 2100 },
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#c92a2a", "#7f1d1d"];
+    const sspPalette = { SSP126: "#2f9e44", SSP245: "#1c7ed6", SSP370: "#f59f00", SSP585: "#9d0208" };
     const metricLabels = {
       p50plus: "50°C 이상 발생확률(%)",
       p55plus: "55°C 이상 발생확률(%)",
@@ -164,7 +169,7 @@
     SSPS.forEach((ssp) => option(controls.ssp, ssp, sspLabels[ssp]));
     for (let year = START_YEAR; year <= END_YEAR; year++) option(controls.year, year, year);
     MONTHS.forEach((month) => option(controls.month, month.value, month.label));
-    controls.ssp.value = "SSP585";
+    controls.ssp.value = "SSP126";
     const initialDate = nearestDataDate(new Date());
     controls.year.value = initialDate.year;
     controls.month.value = initialDate.month;
@@ -285,14 +290,24 @@
       svg.appendChild(node);
     }
 
+    function renderSspLegend() {
+      const legend = document.getElementById("sspCompareLegend");
+      legend.innerHTML = "";
+      SSPS.forEach((ssp) => {
+        const item = document.createElement("div");
+        item.className = "chart-legend-item";
+        item.innerHTML = '<i class="chart-legend-swatch" style="background:' + sspPalette[ssp] + '"></i><span>' + sspLabels[ssp] + '</span>';
+        legend.appendChild(item);
+      });
+    }
+
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
       const svg = document.getElementById(svgId);
       clearSvg(svg);
       const width = 280;
-      const height = 156;
-      const pad = { left: 42, right: 12, top: 14, bottom: 46 };
+      const height = 178;
+      const pad = { left: 42, right: 12, top: 14, bottom: 58 };
       drawAxes(svg, width, height, pad);
-      const palette = { SSP126: "#2f9e44", SSP245: "#1c7ed6", SSP370: "#f59f00", SSP585: "#9d0208" };
       const allSeries = Object.values(seriesBySsp);
       const allValues = allSeries.flat().map((d) => d.value);
       const maxValue = Math.max(1, ...allValues);
@@ -308,11 +323,12 @@
           const h = chartH * value / maxValue;
           const x = pad.left + groupIndex * (groupW + groupGap) + sspIndex * barW;
           const y = height - pad.bottom - h;
-          svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: palette[ssp] }));
+          svg.appendChild(svgEl("rect", { x, y, width: Math.max(1, barW - 1), height: h, rx: 1, fill: sspPalette[ssp] }));
         });
         const item = allSeries[0][groupIndex];
-        drawPeriodLabel(svg, item.label, item.range, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 34);
+        drawPeriodLabel(svg, item.label, item.range, pad.left + groupIndex * (groupW + groupGap) + groupW / 2, height - 47);
       });
+      renderSspLegend();
       drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
         "기준: 5-9월 전체<br>" +
