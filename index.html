@@ -42,6 +42,7 @@
     .chart-legend-item { display: flex; align-items: center; gap: 5px; min-width: 0; }
     .chart-legend-swatch { width: 11px; height: 11px; border-radius: 2px; flex: 0 0 auto; }
     .chart-axis { stroke: #ccd5dd; stroke-width: 1; }
+    .chart-grid { stroke: #e8edf1; stroke-width: 1; }
     .chart-line { fill: none; stroke: #1c7ed6; stroke-width: 2.5; }
     .chart-line-secondary { fill: none; stroke: #9d0208; stroke-width: 2.5; }
     .chart-dot { fill: #1c7ed6; }
@@ -276,6 +277,17 @@
       svg.appendChild(svgEl("line", { x1: pad.left, y1: pad.top, x2: pad.left, y2: height - pad.bottom, class: "chart-axis" }));
     }
 
+    function drawYTicks(svg, width, height, pad, maxValue) {
+      const chartH = height - pad.top - pad.bottom;
+      const tickCount = 5;
+      for (let tick = 0; tick <= tickCount; tick++) {
+        const value = maxValue * tick / tickCount;
+        const y = height - pad.bottom - chartH * tick / tickCount;
+        svg.appendChild(svgEl("line", { x1: pad.left, y1: y, x2: width - pad.right, y2: y, class: "chart-grid" }));
+        drawText(svg, value.toFixed(0), pad.left - 4, y + 3, "end");
+      }
+    }
+
     function drawText(svg, text, x, y, anchor = "middle") {
       const node = svgEl("text", { x, y, "text-anchor": anchor, class: "chart-label" });
       node.textContent = text;
@@ -308,15 +320,16 @@
       clearSvg(svg);
       const width = 280;
       const height = 178;
-      const pad = { left: 42, right: 12, top: 14, bottom: 20 };
-      drawAxes(svg, width, height, pad);
+      const pad = { left: 30, right: 4, top: 14, bottom: 20 };
       const allSeries = Object.values(seriesBySsp);
       const allValues = allSeries.flat().map((d) => d.value);
-      const maxValue = Math.max(1, ...allValues);
+      const maxValue = Math.max(5, Math.ceil(Math.max(...allValues) / 5) * 5);
+      drawYTicks(svg, width, height, pad, maxValue);
+      drawAxes(svg, width, height, pad);
       const labels = allSeries[0].map((d) => d.label);
       const chartW = width - pad.left - pad.right;
       const chartH = height - pad.top - pad.bottom;
-      const groupGap = 5;
+      const groupGap = 2;
       const groupW = (chartW - groupGap * (labels.length - 1)) / labels.length;
       const barW = groupW / SSPS.length;
       labels.forEach((label, groupIndex) => {
@@ -331,7 +344,6 @@
       });
       renderPeriodLabels(allSeries[0]);
       renderSspLegend();
-      drawText(svg, maxValue.toFixed(1) + "%", 6, pad.top + 4, "start");
       document.getElementById(noteId).innerHTML =
         "기준: 5-9월 전체<br>" +
         "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
