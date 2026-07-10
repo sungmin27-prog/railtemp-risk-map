@@ -303,10 +303,10 @@
       });
     }
 
-    function quantile(values, p) {
+    function standardDeviation(values, mean) {
       if (!values.length) return 0;
-      const sorted = values.slice().sort((a, b) => a - b);
-      return sorted[Math.floor((sorted.length - 1) * p)];
+      const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+      return Math.sqrt(variance);
     }
 
     function drawGroupedDecadeChart(svgId, noteId, seriesBySsp) {
@@ -317,7 +317,7 @@
       const pad = { left: 42, right: 12, top: 14, bottom: 20 };
       drawAxes(svg, width, height, pad);
       const allSeries = Object.values(seriesBySsp);
-      const allValues = allSeries.flat().flatMap((d) => [d.value, d.q75]);
+      const allValues = allSeries.flat().flatMap((d) => [d.value, d.upper]);
       const maxValue = Math.max(1, ...allValues);
       const labels = allSeries[0].map((d) => d.label);
       const chartW = width - pad.left - pad.right;
@@ -328,19 +328,19 @@
       labels.forEach((label, groupIndex) => {
         SSPS.forEach((ssp, sspIndex) => {
           const value = seriesBySsp[ssp][groupIndex].value;
-          const q25 = seriesBySsp[ssp][groupIndex].q25;
-          const q75 = seriesBySsp[ssp][groupIndex].q75;
+          const lower = seriesBySsp[ssp][groupIndex].lower;
+          const upper = seriesBySsp[ssp][groupIndex].upper;
           const h = chartH * value / maxValue;
           const x = pad.left + groupIndex * (groupW + groupGap) + sspIndex * barW;
           const y = height - pad.bottom - h;
           const w = Math.max(1, barW - 1);
           svg.appendChild(svgEl("rect", { x, y, width: w, height: h, rx: 1, fill: sspPalette[ssp] }));
           const cx = x + w / 2;
-          const y25 = height - pad.bottom - chartH * q25 / maxValue;
-          const y75 = height - pad.bottom - chartH * q75 / maxValue;
-          svg.appendChild(svgEl("line", { x1: cx, y1: y75, x2: cx, y2: y25, stroke: "#263238", "stroke-width": 1 }));
-          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: y75, x2: cx + 2.5, y2: y75, stroke: "#263238", "stroke-width": 1 }));
-          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: y25, x2: cx + 2.5, y2: y25, stroke: "#263238", "stroke-width": 1 }));
+          const yLower = height - pad.bottom - chartH * lower / maxValue;
+          const yUpper = height - pad.bottom - chartH * upper / maxValue;
+          svg.appendChild(svgEl("line", { x1: cx, y1: yUpper, x2: cx, y2: yLower, stroke: "#263238", "stroke-width": 1 }));
+          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: yUpper, x2: cx + 2.5, y2: yUpper, stroke: "#263238", "stroke-width": 1 }));
+          svg.appendChild(svgEl("line", { x1: cx - 2.5, y1: yLower, x2: cx + 2.5, y2: yLower, stroke: "#263238", "stroke-width": 1 }));
         });
       });
       renderPeriodLabels(allSeries[0]);
@@ -349,7 +349,7 @@
       document.getElementById(noteId).innerHTML =
         "기준: 5-9월 전체<br>" +
         "값: " + metricLabels[controls.metric.value] + " 평균<br>" +
-        "불확실도: 지점·연도·월 값의 25-75% 범위<br>" +
+        "불확실도: 평균 ± 표준편차<br>" +
         "단위: %";
     }
 
@@ -365,12 +365,15 @@
             item.count++;
             values.push(row[metric]);
           });
+          const mean = item.value / Math.max(1, item.count);
+          const sd = standardDeviation(values, mean);
           return {
             label: period.label,
             range: period.range,
-            value: item.value / Math.max(1, item.count),
-            q25: quantile(values, 0.25),
-            q75: quantile(values, 0.75),
+            value: mean,
+            sd,
+            lower: Math.max(0, mean - sd),
+            upper: Math.min(100, mean + sd),
           };
         });
       }
