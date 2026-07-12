@@ -87,7 +87,7 @@
         <label>통계 시각화</label>
         <div class="chart-card">
           <div class="chart-title">SSP 시나리오별 시기 비교</div>
-          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 178" role="img" aria-label="SSP 시나리오별 전반기 중반기 후반기 발생확률 막대그래프"></svg>
+          <svg class="chart-svg" id="sspCompareChart" viewBox="0 0 280 178" role="img" aria-label="SSP 시나리오별 근미래 중미래 먼미래 발생확률 막대그래프"></svg>
           <div class="chart-periods" id="sspComparePeriods"></div>
           <div class="chart-legend" id="sspCompareLegend"></div>
           <p class="chart-note" id="sspCompareNote"></p>
@@ -115,9 +115,9 @@
     const START_YEAR = 2021;
     const END_YEAR = 2100;
     const PERIODS = [
-      { id: "early", label: "전반기", range: "2021-2040", start: 2021, end: 2040 },
-      { id: "mid", label: "중반기", range: "2041-2070", start: 2041, end: 2070 },
-      { id: "late", label: "후반기", range: "2071-2100", start: 2071, end: 2100 },
+      { id: "near", label: "근미래", range: "2021~2040", start: 2021, end: 2040 },
+      { id: "mid", label: "중미래", range: "2041~2060", start: 2041, end: 2060 },
+      { id: "far", label: "먼미래", range: "2061~2100", start: 2061, end: 2100 },
     ];
     const colors = ["#2f9e44", "#a3b72f", "#f59f00", "#e8590c", "#c92a2a", "#7f1d1d"];
     const sspPalette = { SSP126: "#2f9e44", SSP245: "#1c7ed6", SSP370: "#f59f00", SSP585: "#9d0208" };
